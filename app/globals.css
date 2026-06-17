@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #faf7f2;
+  color: #1e293b;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: #f5e6d3;
+  color: #1e293b;
+}
+
+.container-page {
+  width: min(100% - 32px, 1120px);
+  margin-inline: auto;
+}
+
+.card {
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow: 0 8px 30px rgba(30, 41, 59, 0.07);
+}
+
+.section-pad {
+  padding-block: clamp(56px, 8vw, 104px);
+}

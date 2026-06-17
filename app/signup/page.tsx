@@ -1,0 +1,27 @@
+import type { Metadata } from "next";
+import { AuthForm } from "@/components/auth-form";
+import { PublicShell } from "@/components/site-shell";
+
+export const metadata: Metadata = {
+  title: "Create Account",
+  description: "Create a LioraBump account."
+};
+
+export default function SignupPage() {
+  return (
+    <PublicShell>
+      <main className="section-pad">
+        <section className="container-page grid gap-8 md:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Create account</p>
+            <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Begin with a secure account.</h1>
+            <p className="mt-5 text-lg leading-8 text-slate">
+              Your scans, memories, health records and baby photos should belong to your private family space.
+            </p>
+          </div>
+          <AuthForm mode="signup" />
+        </section>
+      </main>
+    </PublicShell>
+  );
+}
