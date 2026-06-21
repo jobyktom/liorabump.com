@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Baby, HeartPulse, Home, NotebookTabs, Settings } from "lucide-react";
 import { medicalDisclaimer, navLinks } from "@/lib/content";
+import { HeaderAccountButton, HeaderAccountNav } from "./header-account-links";
 import { Logo } from "./logo";
 
 export function Header() {
@@ -9,18 +10,14 @@ export function Header() {
       <div className="container-page flex h-20 items-center justify-between">
         <Logo />
         <nav className="hidden items-center gap-8 text-sm text-slate md:flex">
-          {navLinks.map((link) => (
+          {navLinks.filter((link) => link.href !== "/login").map((link) => (
             <Link key={link.href} href={link.href} className="transition hover:text-navy">
               {link.label}
             </Link>
           ))}
+          <HeaderAccountNav />
         </nav>
-        <Link
-          href="/signup"
-          className="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navySoft"
-        >
-          Get started
-        </Link>
+        <HeaderAccountButton />
       </div>
     </header>
   );
