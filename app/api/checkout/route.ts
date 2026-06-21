@@ -39,6 +39,43 @@ export async function POST(req: Request) {
     );
   }
 
+  const existingSubscriptionId = current.family.stripe_subscription_id;
+
+  if (existingSubscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(existingSubscriptionId);
+
+      if (["active", "trialing", "past_due"].includes(subscription.status)) {
+        const subscriptionItem = subscription.items.data[0];
+
+        if (!subscriptionItem) {
+          return NextResponse.json({ error: "Your current subscription could not be updated. Please contact support." }, { status: 409 });
+        }
+
+        if (subscriptionItem.price.id === priceId) {
+          return NextResponse.json({ url: `${appUrl}/pricing/success?plan=${plan.id}` });
+        }
+
+        await stripe.subscriptions.update(existingSubscriptionId, {
+          items: [{ id: subscriptionItem.id, price: priceId }],
+          metadata: {
+            planId: plan.id,
+            familyId: current.family.id,
+            userId: current.userId
+          },
+          proration_behavior: "create_prorations"
+        });
+
+        return NextResponse.json({ url: `${appUrl}/pricing/success?plan=${plan.id}` });
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "We could not verify your current subscription. Please contact support before changing plans." },
+        { status: 409 }
+      );
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer_email: current.email,

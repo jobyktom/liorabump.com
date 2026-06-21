@@ -16,6 +16,8 @@ export type CurrentFamily = {
     country: string | null;
     privacy_level: "private" | "partner" | "family";
     subscription_plan: string;
+    stripe_customer_id: string | null;
+    stripe_subscription_id: string | null;
     created_at: string;
   };
 };
@@ -58,7 +60,9 @@ export async function getCurrentFamily(): Promise<CurrentFamily | null> {
 
     const query = supabase
       .from("families")
-      .select("id,owner_id,baby_nickname,due_date,country,privacy_level,subscription_plan,created_at")
+      .select(
+        "id,owner_id,baby_nickname,due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at"
+      )
       .order("created_at", { ascending: false })
       .limit(1);
 
