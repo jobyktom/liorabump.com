@@ -111,7 +111,7 @@ export default async function SettingsPage() {
                   </button>
                 </form>
 
-                <section className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
+                <section className="grid gap-6 xl:grid-cols-2">
                   <div className="card min-w-0 p-6">
                     <div className="flex items-center gap-3">
                       <ShieldCheck className="h-6 w-6 text-lavenderDeep" />
