@@ -7,7 +7,7 @@ export default function PricingSuccessPage() {
       <main className="section-pad">
         <section className="container-page max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Subscription started</p>
-          <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Welcome to LioraBump Premium.</h1>
+          <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Welcome to LioraBump.</h1>
           <p className="mt-5 text-lg leading-8 text-slate">
             Stripe has confirmed checkout. Your LioraBump plan will update as soon as the subscription webhook reaches Supabase.
           </p>
