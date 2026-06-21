@@ -111,8 +111,8 @@ export default async function SettingsPage() {
                   </button>
                 </form>
 
-                <section className="grid gap-6 xl:grid-cols-3">
-                  <div className="card p-6">
+                <section className="grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">
+                  <div className="card min-w-0 p-6">
                     <div className="flex items-center gap-3">
                       <ShieldCheck className="h-6 w-6 text-lavenderDeep" />
                       <h2 className="font-serif text-2xl font-bold text-navy">Billing and subscription</h2>
@@ -131,7 +131,7 @@ export default async function SettingsPage() {
                     )}
                   </div>
 
-                  <div className="card p-6">
+                  <div className="card min-w-0 p-6">
                     <div className="flex items-center gap-3">
                       <UsersRound className="h-6 w-6 text-lavenderDeep" />
                       <h2 className="font-serif text-2xl font-bold text-navy">Family members</h2>
@@ -156,13 +156,13 @@ export default async function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="card p-6">
+                  <div className="card min-w-0 p-6">
                     <div className="flex items-center gap-3">
                       <UserPlus className="h-6 w-6 text-lavenderDeep" />
                       <h2 className="font-serif text-2xl font-bold text-navy">Invites</h2>
                     </div>
                     {settings.isOwner ? (
-                      <form action={createFamilyInvite} className="mt-5 grid gap-3">
+                      <form action={createFamilyInvite} className="mt-5 grid min-w-0 gap-3">
                         <TextField name="invited_email" label="Invite email" type="email" />
                         <button type="submit" className="h-14 rounded-2xl bg-navy px-6 text-sm font-bold text-white">
                           Send invite
@@ -272,14 +272,14 @@ function TextField({
   disabled?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-bold text-navy">
+    <label className="grid min-w-0 gap-2 text-sm font-bold text-navy">
       {label}
       <input
         name={name}
         type={type}
         defaultValue={defaultValue}
         disabled={disabled}
-        className="h-14 rounded-2xl border border-navy/10 bg-background px-4 text-base font-normal outline-none focus:ring-2 focus:ring-lavenderDeep disabled:opacity-60"
+        className="h-14 min-w-0 w-full rounded-2xl border border-navy/10 bg-background px-4 text-base font-normal outline-none focus:ring-2 focus:ring-lavenderDeep disabled:opacity-60"
       />
     </label>
   );
