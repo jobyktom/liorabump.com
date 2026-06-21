@@ -24,15 +24,18 @@ export async function POST(req: Request) {
   const stripe = getStripe();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://127.0.0.1:3000";
   const priceId = plan.stripePriceEnv ? process.env[plan.stripePriceEnv] : null;
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const hasInvalidStripeKey = !stripeSecretKey || !stripeSecretKey.startsWith("sk_") || stripeSecretKey.includes("replace_me");
+  const hasInvalidPrice = !priceId || !priceId.startsWith("price_") || priceId.includes("replace_me");
 
-  if (!stripe || !priceId) {
+  if (!stripe || hasInvalidStripeKey || hasInvalidPrice) {
     return NextResponse.json(
       {
         error: "Stripe is not configured yet.",
         missing: [
-          !stripe ? "STRIPE_SECRET_KEY" : null,
+          !stripe || hasInvalidStripeKey ? "STRIPE_SECRET_KEY" : null,
           !process.env.NEXT_PUBLIC_APP_URL ? "NEXT_PUBLIC_APP_URL" : null,
-          !priceId && plan.stripePriceEnv ? plan.stripePriceEnv : null
+          hasInvalidPrice && plan.stripePriceEnv ? plan.stripePriceEnv : null
         ].filter(Boolean)
       },
       { status: 503 }
@@ -76,27 +79,37 @@ export async function POST(req: Request) {
     }
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer_email: current.email,
-    client_reference_id: current.family.id,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/pricing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/pricing/cancelled`,
-    allow_promotion_codes: true,
-    metadata: {
-      planId: plan.id,
-      familyId: current.family.id,
-      userId: current.userId
-    },
-    subscription_data: {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer_email: current.email,
+      client_reference_id: current.family.id,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl}/pricing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/pricing/cancelled`,
+      allow_promotion_codes: true,
       metadata: {
         planId: plan.id,
         familyId: current.family.id,
         userId: current.userId
+      },
+      subscription_data: {
+        metadata: {
+          planId: plan.id,
+          familyId: current.family.id,
+          userId: current.userId
+        }
       }
-    }
-  });
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Stripe checkout session failed", {
+      familyId: current.family.id,
+      planId: plan.id,
+      error: error instanceof Error ? error.message : error
+    });
+
+    return NextResponse.json({ error: "Stripe could not start checkout. Please try again shortly." }, { status: 502 });
+  }
 }
