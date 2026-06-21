@@ -25,7 +25,12 @@ export async function proxy(request: NextRequest) {
   });
 
   // Refreshes expired access tokens and writes the updated cookies back to the browser.
-  await supabase.auth.getUser();
+  // A temporary upstream auth outage must not take down every page or fail a host health check.
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    return response;
+  }
 
   return response;
 }
