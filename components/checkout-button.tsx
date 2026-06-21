@@ -17,7 +17,19 @@ export function CheckoutButton({ planId, label }: { planId: string; label: strin
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId })
       });
-      const data = (await response.json()) as { url?: string; error?: string; missing?: string[] };
+      const responseBody = await response.text();
+      let data: { url?: string; error?: string; missing?: string[] } | null = null;
+
+      try {
+        data = JSON.parse(responseBody) as { url?: string; error?: string; missing?: string[] };
+      } catch {
+        setMessage(
+          response.ok
+            ? "Checkout returned an unexpected response. Please try again."
+            : "Checkout is temporarily unavailable. Please try again in a moment."
+        );
+        return;
+      }
 
       if (!response.ok) {
         setMessage(
@@ -30,9 +42,11 @@ export function CheckoutButton({ planId, label }: { planId: string; label: strin
 
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setMessage("Checkout could not be started. Please try again.");
       }
     } catch {
-      setMessage("Checkout could not be started. Please check the dev server and Stripe settings.");
+      setMessage("Checkout is temporarily unavailable. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
