@@ -14,7 +14,7 @@ export default function BlogPage() {
     <PublicShell>
       <main className="section-pad">
         <div className="container-page">
-          <SectionHeading eyebrow="SEO content hub" title="Guides for pregnancy, birth planning and baby memories" text="Every article is structured for search, clear disclaimers, FAQs and app conversion." />
+          <SectionHeading eyebrow="Evidence-led guides" title="Guides for pregnancy, birth planning and baby memories" text="Clear, practical reading with visible source links, medical context and space for your own care team's advice." />
           <div className="grid gap-5 md:grid-cols-3">
             {blogPosts.map((post) => (
               <Link key={post.slug} href={`/blog/${post.slug}`} className="card block p-6 transition hover:-translate-y-1">

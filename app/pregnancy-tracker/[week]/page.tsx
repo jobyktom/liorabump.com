@@ -11,7 +11,11 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ week: string }> }): Promise<Metadata> {
   const { week } = await params;
   const number = Number(week.replace("week-", ""));
-  return { title: `Pregnancy Week ${number}`, description: `Educational pregnancy guide for week ${number}.` };
+  return {
+    title: `Pregnancy Week ${number}`,
+    description: `Educational pregnancy guide for week ${number}.`,
+    robots: { index: false, follow: true }
+  };
 }
 
 export default async function WeekPage({ params }: { params: Promise<{ week: string }> }) {

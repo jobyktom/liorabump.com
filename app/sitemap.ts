@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
-import { appSections } from "@/lib/app-sections";
-import { blogPosts, pregnancyWeeks } from "@/lib/content";
+import { blogArticles } from "@/lib/blog-content";
+
+const siteUpdatedAt = new Date("2026-06-21T00:00:00.000Z");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://liorabump.com";
@@ -9,9 +10,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/features",
     "/pricing",
     "/blog",
-    "/app",
-    "/app/onboarding",
-    ...Object.keys(appSections).map((section) => `/app/${section}`),
     "/pregnancy-tracker",
     "/food-guide",
     "/baby-milestones",
@@ -25,8 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   return [
-    ...staticRoutes.map((route) => ({ url: `${base}${route}`, lastModified: new Date() })),
-    ...blogPosts.map((post) => ({ url: `${base}/blog/${post.slug}`, lastModified: new Date() })),
-    ...pregnancyWeeks.map((week) => ({ url: `${base}/pregnancy-tracker/week-${week.week}`, lastModified: new Date() }))
+    ...staticRoutes.map((route) => ({ url: `${base}${route}`, lastModified: siteUpdatedAt, changeFrequency: "monthly" as const, priority: route === "" ? 1 : route === "/blog" ? 0.9 : 0.7 })),
+    ...blogArticles.map((post) => ({ url: `${base}/blog/${post.slug}`, lastModified: new Date(post.updatedAt), changeFrequency: "monthly" as const, priority: 0.8 }))
   ];
 }

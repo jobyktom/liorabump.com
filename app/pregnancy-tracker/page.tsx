@@ -14,7 +14,7 @@ export default function PregnancyTrackerPage() {
     <PublicShell>
       <main className="section-pad">
         <div className="container-page">
-          <SectionHeading eyebrow="Weeks 1 to 42" title="Pregnancy week by week" text="Sample content for every pregnancy week, ready to be expanded and medically reviewed." />
+          <SectionHeading eyebrow="Weeks 1 to 42" title="Pregnancy week by week" text="Educational weekly prompts to help you prepare questions, notice patterns and stay connected to your maternity team's advice." />
           <div className="mb-8">
             <MedicalNotice />
           </div>

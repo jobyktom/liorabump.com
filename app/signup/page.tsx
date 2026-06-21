@@ -4,7 +4,8 @@ import { PublicShell } from "@/components/site-shell";
 
 export const metadata: Metadata = {
   title: "Create Account",
-  description: "Create a LioraBump account."
+  description: "Create a LioraBump account.",
+  robots: { index: false, follow: false }
 };
 
 export default function SignupPage() {

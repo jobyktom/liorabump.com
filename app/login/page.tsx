@@ -4,7 +4,8 @@ import { PublicShell } from "@/components/site-shell";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your LioraBump account."
+  description: "Sign in to your LioraBump account.",
+  robots: { index: false, follow: false }
 };
 
 export default function LoginPage() {

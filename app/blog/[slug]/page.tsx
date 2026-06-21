@@ -14,7 +14,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!post) return {};
   return {
     title: post.title,
-    description: post.description
+    description: post.description,
+    alternates: { canonical: `/blog/${post.slug}` },
+    openGraph: {
+      type: "article",
+      url: `/blog/${post.slug}`,
+      title: post.title,
+      description: post.description,
+      publishedTime: "2026-06-21T00:00:00.000Z",
+      modifiedTime: "2026-06-21T00:00:00.000Z",
+      images: [{ url: "/images/liorabump-hero-generated.png", width: 1200, height: 800, alt: post.title }]
+    },
+    twitter: { card: "summary_large_image", title: post.title, description: post.description, images: ["/images/liorabump-hero-generated.png"] }
   };
 }
 
@@ -33,15 +44,41 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
     }))
   };
 
+  const article = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.description,
+    datePublished: "2026-06-21",
+    dateModified: "2026-06-21",
+    inLanguage: "en-GB",
+    mainEntityOfPage: `https://liorabump.com/blog/${post.slug}`,
+    image: "https://liorabump.com/images/liorabump-hero-generated.png",
+    author: { "@type": "Organization", name: "LioraBump" },
+    publisher: { "@type": "Organization", name: "LioraBump", url: "https://liorabump.com" }
+  };
+
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://liorabump.com/" },
+      { "@type": "ListItem", position: 2, name: "Guides", item: "https://liorabump.com/blog" },
+      { "@type": "ListItem", position: 3, name: post.title, item: `https://liorabump.com/blog/${post.slug}` }
+    ]
+  };
+
   return (
     <PublicShell>
       <main className="section-pad">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faq) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
         <article className="container-page max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-peachDeep">{post.category}</p>
           <h1 className="mt-4 font-serif text-5xl font-bold leading-tight text-navy">{post.title}</h1>
           <p className="mt-5 text-xl leading-8 text-slate">{post.description}</p>
-          <p className="mt-4 text-sm font-semibold text-slate">{post.readingTime} · Sources reviewed {post.updatedAt}</p>
+          <p className="mt-4 text-sm font-semibold text-slate">{post.readingTime} &middot; Sources reviewed {post.updatedAt}</p>
           <div className="my-8">
             <MedicalNotice />
           </div>
