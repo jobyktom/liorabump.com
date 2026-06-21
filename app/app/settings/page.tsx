@@ -8,6 +8,7 @@ import {
   removeFamilyMember,
   updateAccountSettings
 } from "@/app/actions/settings";
+import { BillingPortalButton } from "@/components/billing-portal-button";
 import { CopyInviteLink } from "@/components/copy-invite-link";
 import { PublicShell } from "@/components/site-shell";
 import { MedicalNotice } from "@/components/ui";
@@ -110,7 +111,26 @@ export default async function SettingsPage() {
                   </button>
                 </form>
 
-                <section className="grid gap-6 xl:grid-cols-2">
+                <section className="grid gap-6 xl:grid-cols-3">
+                  <div className="card p-6">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="h-6 w-6 text-lavenderDeep" />
+                      <h2 className="font-serif text-2xl font-bold text-navy">Billing and subscription</h2>
+                    </div>
+                    <p className="mt-5 text-sm leading-6 text-slate">
+                      Manage your payment method, invoices and subscription securely through Stripe.
+                    </p>
+                    {settings.isOwner && settings.current.family.stripe_customer_id ? (
+                      <BillingPortalButton />
+                    ) : (
+                      <p className="mt-5 rounded-2xl bg-background p-4 text-sm leading-6 text-slate">
+                        {settings.isOwner
+                          ? "Choose a paid plan before managing billing."
+                          : "Only the workspace owner can manage billing."}
+                      </p>
+                    )}
+                  </div>
+
                   <div className="card p-6">
                     <div className="flex items-center gap-3">
                       <UsersRound className="h-6 w-6 text-lavenderDeep" />
