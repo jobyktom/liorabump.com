@@ -10,6 +10,7 @@ import {
   UsersRound,
   Utensils
 } from "lucide-react";
+import { blogArticles } from "@/lib/blog-content";
 
 export const medicalDisclaimer =
   "LioraBump provides educational pregnancy and baby development information only. It does not replace advice from a doctor, midwife, paediatrician, or other qualified healthcare professional. If you have urgent concerns, seek medical help immediately.";
@@ -93,44 +94,7 @@ export const milestoneMonths = Array.from({ length: 25 }, (_, month) => ({
   prompts: ["Photo memory", "Growth note", "Feeding rhythm", "Family milestone"]
 }));
 
-export const blogPosts = [
-  {
-    slug: "pregnancy-week-by-week",
-    title: "Pregnancy week by week",
-    description: "A calm educational guide to every stage from early pregnancy to birth preparation.",
-    category: "Pregnancy guide"
-  },
-  {
-    slug: "foods-to-avoid-in-pregnancy",
-    title: "Foods to avoid in pregnancy",
-    description: "How to think about safer food choices and when to ask your midwife for country-specific advice.",
-    category: "Food"
-  },
-  {
-    slug: "hospital-bag-checklist",
-    title: "Hospital bag checklist",
-    description: "A practical checklist for mother, partner and baby, with space for personal hospital guidance.",
-    category: "Planning"
-  },
-  {
-    slug: "fathers-pregnancy-guide",
-    title: "Father and partner pregnancy guide",
-    description: "Support ideas, appointment reminders and ways to stay connected from scan to birth.",
-    category: "Partners"
-  },
-  {
-    slug: "baby-milestones",
-    title: "Baby milestones from birth to 24 months",
-    description: "A gentle way to record first smiles, first words, first steps and everyday memories.",
-    category: "Baby"
-  },
-  {
-    slug: "postpartum-recovery-guide",
-    title: "Postpartum recovery guide",
-    description: "Educational recovery notes and prompts for discussing your wellbeing with professionals.",
-    category: "Wellbeing"
-  }
-];
+export const blogPosts = blogArticles.map(({ slug, title, description, category }) => ({ slug, title, description, category }));
 
 export const sponsorOffers = [
   { label: "Sponsored", title: "Hydration bottle bundle", brand: "Bloomwell", metric: "2.8k impressions" },
