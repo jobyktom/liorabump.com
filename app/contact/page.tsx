@@ -16,7 +16,7 @@ export default function ContactPage() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Contact</p>
             <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Talk to LioraBump.</h1>
             <p className="mt-5 text-lg leading-8 text-slate">
-              This form is ready for an email provider such as Resend or SendGrid in production.
+              Questions about LioraBump, your account or privacy? Send a message and we will reply by email.
             </p>
           </div>
           <ContactForm />
