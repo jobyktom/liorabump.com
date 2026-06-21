@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Camera,
   CheckSquare,
+  HeartHandshake,
   HeartPulse,
   NotebookPen,
   ScanLine,
@@ -65,6 +66,12 @@ export const appSections = {
     icon: Camera,
     description: "Collect bump photos, baby photos, videos and future printed album exports.",
     actions: ["Add photo", "Create album", "Add caption", "Export book"]
+  },
+  "couple-sync": {
+    title: "Couple sync",
+    icon: HeartHandshake,
+    description: "Share appointment questions, preparation tasks and practical support so pregnancy feels like a team effort.",
+    actions: ["Add task", "Assign support", "Mark done", "Plan appointment"]
   },
   settings: {
     title: "Settings",

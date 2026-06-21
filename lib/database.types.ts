@@ -245,6 +245,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      couple_tasks: {
+        Row: {
+          id: string;
+          family_id: string;
+          created_by: string;
+          title: string;
+          notes: string | null;
+          due_date: string | null;
+          assignee_label: string;
+          status: "todo" | "in_progress" | "done";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          created_by: string;
+          title: string;
+          notes?: string | null;
+          due_date?: string | null;
+          assignee_label?: string;
+          status?: "todo" | "in_progress" | "done";
+          created_at?: string;
+        };
+        Update: {
+          title?: string;
+          notes?: string | null;
+          due_date?: string | null;
+          assignee_label?: string;
+          status?: "todo" | "in_progress" | "done";
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -90,6 +90,18 @@ create table public.baby_milestones (
   created_at timestamptz not null default now()
 );
 
+create table public.couple_tasks (
+  id uuid primary key default gen_random_uuid(),
+  family_id uuid not null references public.families(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  notes text,
+  due_date date,
+  assignee_label text not null default 'Either of us',
+  status text not null default 'todo' check (status in ('todo', 'in_progress', 'done')),
+  created_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.families enable row level security;
 alter table public.family_members enable row level security;
@@ -99,6 +111,7 @@ alter table public.health_entries enable row level security;
 alter table public.journal_entries enable row level security;
 alter table public.media_assets enable row level security;
 alter table public.baby_milestones enable row level security;
+alter table public.couple_tasks enable row level security;
 
 create or replace function public.is_family_member(target_family_id uuid)
 returns boolean
@@ -178,6 +191,12 @@ create policy "Family members can manage media assets" on public.media_assets fo
 );
 
 create policy "Family members can manage milestones" on public.baby_milestones for all using (
+  public.is_family_member(family_id)
+) with check (
+  public.is_family_member(family_id)
+);
+
+create policy "Family members can manage couple tasks" on public.couple_tasks for all using (
   public.is_family_member(family_id)
 ) with check (
   public.is_family_member(family_id)

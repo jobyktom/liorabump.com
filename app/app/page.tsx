@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, Camera, ChevronRight, HeartPulse, Timer, UsersRound } from "lucide-react";
+import { CalendarDays, Camera, ChevronRight, HeartHandshake, HeartPulse, Timer, UsersRound } from "lucide-react";
 import { PublicShell } from "@/components/site-shell";
 import { MedicalNotice } from "@/components/ui";
 import { appActions } from "@/lib/content";
@@ -31,7 +31,7 @@ export default async function AppDashboardPage() {
           <aside className="card hidden p-5 lg:block">
             <h1 className="font-serif text-2xl font-bold text-navy">LioraBump app</h1>
             <nav className="mt-6 space-y-2 text-sm">
-              {["Dashboard", "Health tracker", "Food guide", "Journal", "Scan uploads", "Kick counter", "Birth plan", "Baby profile", "Settings"].map((item) => (
+              {["Dashboard", "Health tracker", "Food guide", "Journal", "Scan uploads", "Kick counter", "Birth plan", "Baby profile", "Couple sync", "Settings"].map((item) => (
                 <Link
                   key={item}
                   href={item === "Dashboard" ? "/app" : `/app/${item.toLowerCase().replaceAll(" ", "-")}`}
@@ -153,10 +153,11 @@ export default async function AppDashboardPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-4">
               <ToolCard icon={Timer} title="Kick counter" text="Track movement sessions and know when to call your maternity unit." />
               <ToolCard icon={CalendarDays} title="Appointment calendar" text="Scans, blood tests, checkups and questions for your midwife." />
               <ToolCard icon={Camera} title="Memory album" text="Photos, letters, scan images and private family sharing." />
+              <ToolCard icon={HeartHandshake} title="Couple sync" text="Share support tasks, preparation and appointment questions." />
             </div>
             <MedicalNotice />
           </section>

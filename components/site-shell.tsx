@@ -1,29 +1,48 @@
 import Link from "next/link";
 import { Baby, HeartPulse, Home, NotebookTabs, Settings } from "lucide-react";
 import { medicalDisclaimer, navLinks } from "@/lib/content";
+import { createClient } from "@/lib/supabase/server";
 import { Logo } from "./logo";
 
-export function Header() {
+export async function Header() {
+  const hasSession = await getSessionState();
+  const primaryLink = hasSession ? { href: "/app", label: "Open app" } : { href: "/signup", label: "Get started" };
+
   return (
     <header className="sticky top-0 z-50 border-b border-navy/5 bg-background/85 backdrop-blur-xl">
       <div className="container-page flex h-20 items-center justify-between">
         <Logo />
         <nav className="hidden items-center gap-8 text-sm text-slate md:flex">
-          {navLinks.map((link) => (
+          {navLinks.filter((link) => link.href !== "/login").map((link) => (
             <Link key={link.href} href={link.href} className="transition hover:text-navy">
               {link.label}
             </Link>
           ))}
+          <Link href={primaryLink.href} className="transition hover:text-navy">
+            {primaryLink.label}
+          </Link>
         </nav>
         <Link
-          href="/signup"
+          href={primaryLink.href}
           className="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navySoft"
         >
-          Get started
+          {primaryLink.label}
         </Link>
       </div>
     </header>
   );
+}
+
+async function getSessionState() {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    return Boolean(user);
+  } catch {
+    return false;
+  }
 }
 
 export function Footer() {
