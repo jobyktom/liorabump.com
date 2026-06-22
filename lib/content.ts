@@ -11,6 +11,7 @@ import {
   Utensils
 } from "lucide-react";
 import { blogArticles } from "@/lib/blog-content";
+export { pregnancyWeeks } from "@/lib/pregnancy-week-content";
 
 export const medicalDisclaimer =
   "LioraBump provides educational pregnancy and baby development information only. It does not replace advice from a doctor, midwife, paediatrician, or other qualified healthcare professional. If you have urgent concerns, seek medical help immediately.";
@@ -65,24 +66,6 @@ export const featureCards = [
     text: "Consent-led sharing, data export, account deletion and privacy-first product decisions."
   }
 ];
-
-export const pregnancyWeeks = Array.from({ length: 42 }, (_, index) => {
-  const week = index + 1;
-  return {
-    week,
-    title: `Week ${week}`,
-    baby: week < 5 ? "Early foundations are forming." : `Baby is developing new skills and growing steadily in week ${week}.`,
-    body:
-      week < 13
-        ? "Hormonal changes may affect energy, appetite and mood."
-        : week < 28
-          ? "Many parents notice body changes, movement patterns and new appointment rhythms."
-          : "Rest, preparation and regular checkups become increasingly important.",
-    partner: "Offer practical help, listen carefully and join appointments where possible.",
-    checklist: ["Review symptoms", "Plan questions for your midwife", "Capture a memory", "Rest and hydrate"],
-    warning: "Contact your maternity unit or healthcare professional if you notice bleeding, severe pain, reduced movements later in pregnancy, fever, or anything that worries you."
-  };
-});
 
 export const milestoneMonths = Array.from({ length: 25 }, (_, month) => ({
   month,
