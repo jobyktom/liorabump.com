@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { consumeContactRequest } from "@/lib/contact-rate-limit";
 import { getResend } from "@/lib/resend";
 
@@ -7,6 +8,7 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_MESSAGE_LENGTH = 5000;
 
 export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > 16_000) {
     return NextResponse.json({ error: "Please keep your message under 5,000 characters." }, { status: 413 });
@@ -56,14 +58,14 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error("Contact email failed", error);
-      return NextResponse.json({ error: "We could not send your message. Please email jobyktom@gmail.com directly." }, { status: 502 });
+      reportContactFailure(requestId, error);
+      return NextResponse.json({ error: `We could not send your message. Please email jobyktom@gmail.com directly and quote reference ${requestId}.` }, { status: 502 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Contact email failed", error);
-    return NextResponse.json({ error: "We could not send your message. Please email jobyktom@gmail.com directly." }, { status: 502 });
+    reportContactFailure(requestId, error);
+    return NextResponse.json({ error: `We could not send your message. Please email jobyktom@gmail.com directly and quote reference ${requestId}.` }, { status: 502 });
   }
 }
 
@@ -75,4 +77,11 @@ function getClientIdentifier(request: Request) {
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? request.headers.get("x-real-ip")
     ?? "unknown";
+}
+
+function reportContactFailure(requestId: string, error: unknown) {
+  const providerMessage = error instanceof Error ? error.message : String(error);
+  const details = { requestId, providerMessage, hasFromAddress: Boolean(process.env.CONTACT_FROM_EMAIL) };
+  console.error(JSON.stringify({ level: "error", message: "Contact email failed", route: "/api/contact", ...details }));
+  Sentry.captureException(error, { tags: { route: "/api/contact" }, extra: details });
 }
