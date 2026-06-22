@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type AuthMode = "login" | "signup";
 
@@ -23,6 +24,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       const safeNext = next?.startsWith("/") ? next : null;
 
       if (mode === "signup") {
+        trackAnalyticsEvent("begin_signup");
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -35,6 +37,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         });
 
         if (error) throw error;
+        trackAnalyticsEvent("sign_up");
         setMessage("Check your email to confirm your account, then sign in.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });

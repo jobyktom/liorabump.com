@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export function DueDateCalculator() {
   const [lastPeriod, setLastPeriod] = useState("");
@@ -53,7 +54,7 @@ export function DueDateCalculator() {
         {estimate ? <p className="mt-3 text-sm font-semibold text-navy">Based on that date, you are approximately in week {estimate.week}.</p> : null}
       </div>
       <p className="mt-5 text-sm leading-6 text-slate">For educational planning only. If you know your clinician-provided due date, use that as your source of truth.</p>
-      <Link href="/signup" className="mt-5 inline-flex h-12 items-center rounded-xl bg-navy px-5 text-sm font-bold text-white">Save your estimate in a free account</Link>
+      <Link href="/signup" onClick={() => trackAnalyticsEvent("due_date_calculator_signup_click")} className="mt-5 inline-flex h-12 items-center rounded-xl bg-navy px-5 text-sm font-bold text-white">Save your estimate in a free account</Link>
     </div>
   );
 }
