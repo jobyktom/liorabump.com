@@ -4,8 +4,8 @@ import { DueDateCalculator } from "@/components/due-date-calculator";
 import { MedicalNotice } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Due Date Calculator",
-  description: "Educational due date calculator page for LioraBump."
+  title: "Due Date Calculator UK",
+  description: "Estimate your pregnancy due date from the first day of your last period and your usual cycle length. For educational planning only."
 };
 
 export default function DueDateCalculatorPage() {
@@ -17,7 +17,7 @@ export default function DueDateCalculatorPage() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-peachDeep">Calculator</p>
             <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Due date calculator</h1>
             <p className="mt-5 text-lg leading-8 text-slate">
-              A production version should calculate from last menstrual period, conception date, IVF transfer or clinician-provided due date.
+              Estimate a due date from the first day of your last period. A dating scan or your maternity team may confirm or adjust the date.
             </p>
           </div>
           <DueDateCalculator />

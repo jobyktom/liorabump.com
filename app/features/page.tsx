@@ -42,17 +42,17 @@ export default function FeaturesPage() {
         <section className="section-pad">
           <div className="container-page grid gap-8 md:grid-cols-2">
             <div>
-              <SectionHeading title="Production modules planned" text="The web app already maps to the future product architecture." />
+              <SectionHeading title="Built around the moments that matter" text="Start with a private workspace, then use the tools that fit your pregnancy and family rhythm." />
             </div>
             <div className="card p-8">
               <CheckList
                 items={[
-                  "Secure authentication and partner invitations",
-                  "Cloud photo, video and document storage",
-                  "Role-based access for mother, partner, family viewer, admin and sponsor",
-                  "PDF export for health summaries and memory books",
-                  "GDPR data export, account deletion and privacy controls",
-                  "Admin content management and sponsor analytics"
+                  "Secure sign-in and partner invitations",
+                  "Private photo, scan and document storage",
+                  "Pregnancy records, appointments and journal notes",
+                  "Shared preparation tasks and family controls",
+                  "Data export, workspace deletion and privacy settings",
+                  "Educational pregnancy and baby guides"
                 ]}
               />
             </div>
