@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { blogArticles } from "@/lib/blog-content";
+import { pregnancyWeeks } from "@/lib/pregnancy-week-content";
 
 const siteUpdatedAt = new Date("2026-06-21T00:00:00.000Z");
 
@@ -24,6 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     ...staticRoutes.map((route) => ({ url: `${base}${route}`, lastModified: siteUpdatedAt, changeFrequency: "monthly" as const, priority: route === "" ? 1 : route === "/blog" ? 0.9 : 0.7 })),
-    ...blogArticles.map((post) => ({ url: `${base}/blog/${post.slug}`, lastModified: new Date(post.updatedAt), changeFrequency: "monthly" as const, priority: 0.8 }))
+    ...blogArticles.map((post) => ({ url: `${base}/blog/${post.slug}`, lastModified: new Date(post.updatedAt), changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...pregnancyWeeks.map((week) => ({ url: `${base}/pregnancy-tracker/week-${week.week}`, lastModified: siteUpdatedAt, changeFrequency: "monthly" as const, priority: 0.7 }))
   ];
 }

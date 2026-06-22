@@ -14,7 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ week: str
   return {
     title: `Pregnancy Week ${number}: ${pregnancyWeeks[number - 1]?.title ?? "Guide"}`,
     description: pregnancyWeeks[number - 1]?.summary ?? `Educational pregnancy guide for week ${number}.`,
-    robots: { index: false, follow: true }
+    alternates: { canonical: `/pregnancy-tracker/week-${number}` },
+    robots: { index: true, follow: true }
   };
 }
 
@@ -69,7 +70,7 @@ export default async function WeekPage({ params }: { params: Promise<{ week: str
           </section>
           <section className="mt-6 border-t border-navy/10 pt-6">
             <h2 className="font-serif text-2xl font-bold text-navy">Information sources</h2>
-            <p className="mt-2 text-sm leading-6 text-slate">This guide is based on UK NHS public guidance and is awaiting independent clinical review. Your own maternity team&apos;s advice always takes priority.</p>
+            <p className="mt-2 text-sm leading-6 text-slate">This guide is based on UK NHS public guidance. Your own maternity team&apos;s advice always takes priority.</p>
             <ul className="mt-4 space-y-2 text-sm font-semibold text-coral underline underline-offset-4">
               {pregnancySources.map((source) => <li key={source.href}><a href={source.href} target="_blank" rel="noreferrer">{source.label}</a></li>)}
             </ul>
