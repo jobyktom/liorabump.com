@@ -15,6 +15,12 @@ export type JourneyInsert = {
 export type Database = {
   public: {
     Tables: {
+      lead_captures: {
+        Row: { id: string; email: string; source: string; marketing_consent: boolean; created_at: string; };
+        Insert: { id?: string; email: string; source: string; marketing_consent?: boolean; created_at?: string; };
+        Update: { email?: string; source?: string; marketing_consent?: boolean; };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

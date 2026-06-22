@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/site-shell";
 import { ButtonLink, MedicalNotice } from "@/components/ui";
 import { blogArticles } from "@/lib/blog-content";
+import { HospitalBagDownload } from "@/components/hospital-bag-download";
 
 export function generateStaticParams() {
   return blogArticles.map((post) => ({ slug: post.slug }));
@@ -125,6 +126,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
           <div className="mt-10">
             <ButtonLink href="/app/onboarding">Save this guide in the app</ButtonLink>
           </div>
+          {post.slug === "hospital-bag-checklist" ? <HospitalBagDownload /> : null}
         </article>
       </main>
     </PublicShell>
