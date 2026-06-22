@@ -32,13 +32,6 @@ export default function PricingPage() {
               </article>
             ))}
           </div>
-          <div className="card mt-8 p-6 text-sm leading-7 text-slate">
-            <h2 className="font-serif text-2xl font-bold text-navy">Stripe setup note</h2>
-            <p className="mt-2">
-              Premium and Family use Stripe subscription Checkout. Until you add live/test price IDs and API keys,
-              those buttons will show the missing environment variables instead of redirecting.
-            </p>
-          </div>
         </div>
       </main>
     </PublicShell>
