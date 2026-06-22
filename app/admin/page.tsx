@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { BarChart3, BellRing, FileText, Megaphone, Newspaper, UsersRound } from "lucide-react";
 import { PublicShell } from "@/components/site-shell";
-import { sponsorOffers } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
@@ -33,21 +32,6 @@ export default function AdminPage() {
               </article>
             ))}
           </div>
-          <section className="card mt-8 overflow-hidden">
-            <div className="border-b border-navy/10 p-6">
-              <h2 className="font-serif text-3xl font-bold text-navy">Sponsor performance</h2>
-            </div>
-            <div className="divide-y divide-navy/10">
-              {sponsorOffers.map((offer) => (
-                <div key={offer.title} className="grid gap-2 p-6 md:grid-cols-4">
-                  <strong className="text-navy">{offer.title}</strong>
-                  <span className="text-slate">{offer.brand}</span>
-                  <span className="text-peachDeep">{offer.label}</span>
-                  <span className="font-bold text-lavenderDeep">{offer.metric}</span>
-                </div>
-              ))}
-            </div>
-          </section>
         </div>
       </main>
     </PublicShell>

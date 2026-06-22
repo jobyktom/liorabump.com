@@ -79,12 +79,6 @@ export const milestoneMonths = Array.from({ length: 25 }, (_, month) => ({
 
 export const blogPosts = blogArticles.map(({ slug, title, description, category }) => ({ slug, title, description, category }));
 
-export const sponsorOffers = [
-  { label: "Sponsored", title: "Hydration bottle bundle", brand: "Bloomwell", metric: "2.8k impressions" },
-  { label: "Affiliate", title: "Hospital bag essentials", brand: "Nest & Navy", metric: "8.4% CTR" },
-  { label: "Sponsored", title: "Trimester snack ideas", brand: "Peach Pantry", metric: "1.2k saves" }
-];
-
 export const appActions = [
   { icon: Camera, label: "Add photo" },
   { icon: NotebookPen, label: "Journal" },

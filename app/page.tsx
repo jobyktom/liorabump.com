@@ -2,7 +2,7 @@ import { Heart, LockKeyhole, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { PublicShell } from "@/components/site-shell";
 import { ButtonLink, LifestyleImage, MedicalNotice, SectionHeading } from "@/components/ui";
-import { appActions, featureCards, sponsorOffers } from "@/lib/content";
+import { appActions, featureCards } from "@/lib/content";
 
 export default function HomePage() {
   return (
@@ -98,24 +98,6 @@ export default function HomePage() {
                   controlled sharing and user-owned deletion.
                 </p>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-peach/35 section-pad">
-          <div className="container-page">
-            <SectionHeading eyebrow="Sponsor ready" title="Clear labels for partner offers" text="Monetisation is designed to be transparent, useful and separate from health guidance." />
-            <div className="grid gap-5 md:grid-cols-3">
-              {sponsorOffers.map((offer) => (
-                <article key={offer.title} className="card p-6">
-                  <span className="rounded-full border border-peachDeep/20 bg-peach px-3 py-1 text-xs font-bold uppercase tracking-wide text-peachDeep">
-                    {offer.label}
-                  </span>
-                  <h3 className="mt-5 font-serif text-2xl font-bold text-navy">{offer.title}</h3>
-                  <p className="mt-2 text-sm text-slate">{offer.brand}</p>
-                  <p className="mt-6 text-sm font-bold text-lavenderDeep">{offer.metric}</p>
-                </article>
-              ))}
             </div>
           </div>
         </section>
