@@ -2,29 +2,21 @@
 
 import Script from "next/script";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const consentKey = "liorabump-analytics-consent";
 
 export function AnalyticsConsent({ measurementId }: { measurementId?: string }) {
-  const [consent, setConsent] = useState<"accepted" | "declined" | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [hasStoredChoice, setHasStoredChoice] = useState(false);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(consentKey);
-    setHasStoredChoice(saved === "accepted" || saved === "declined");
-    setConsent(saved === "accepted" || saved === "declined" ? saved : "declined");
-    setIsReady(true);
-  }, []);
+  const [selectedConsent, setSelectedConsent] = useState<"accepted" | "declined" | null>(null);
+  const storedConsent = useSyncExternalStore(subscribeToConsent, readConsent, () => null);
+  const consent = selectedConsent ?? storedConsent;
 
   function setChoice(choice: "accepted" | "declined") {
     window.localStorage.setItem(consentKey, choice);
-    setHasStoredChoice(true);
-    setConsent(choice);
+    setSelectedConsent(choice);
   }
 
-  if (!measurementId || !isReady) return null;
+  if (!measurementId) return null;
 
   return (
     <>
@@ -36,7 +28,7 @@ export function AnalyticsConsent({ measurementId }: { measurementId?: string }) 
           </Script>
         </>
       ) : null}
-      {consent === "declined" && !hasStoredChoice ? (
+      {consent === null ? (
         <aside className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-2xl border border-navy/10 bg-background p-5 shadow-lg md:inset-x-auto md:right-6 md:w-[36rem]" role="dialog" aria-label="Analytics cookie choice">
           <p className="font-serif text-xl font-bold text-navy">Help us improve LioraBump</p>
           <p className="mt-2 text-sm leading-6 text-slate">With your permission, we use anonymous analytics to understand which public guides and signup paths are useful. We do not send health entries, due dates, names or email addresses to Google Analytics.</p>
@@ -49,4 +41,14 @@ export function AnalyticsConsent({ measurementId }: { measurementId?: string }) 
       ) : null}
     </>
   );
+}
+
+function subscribeToConsent(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function readConsent() {
+  const value = window.localStorage.getItem(consentKey);
+  return value === "accepted" || value === "declined" ? value : null;
 }
