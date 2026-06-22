@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Baby, HeartPulse, Home, NotebookTabs, Settings } from "lucide-react";
 import { medicalDisclaimer, navLinks } from "@/lib/content";
 import { HeaderAccountButton, HeaderAccountNav } from "./header-account-links";
+import { CookiePreferencesButton } from "./cookie-preferences-button";
 import { Logo } from "./logo";
 
 export function Header() {
@@ -35,7 +36,12 @@ export function Footer() {
         <div className="grid gap-8 text-sm sm:grid-cols-3">
           <FooterColumn title="Product" links={["Features", "Pregnancy tracker", "Food guide", "Baby milestones"]} />
           <FooterColumn title="Company" links={["About", "Blog", "Pricing", "Contact"]} />
-          <FooterColumn title="Legal" links={["Privacy Policy", "Terms", "Medical Disclaimer", "Sponsored disclosure"]} />
+          <div>
+            <FooterColumn title="Legal" links={["Privacy Policy", "Terms", "Medical Disclaimer", "Sponsored disclosure"]} />
+            <div className="mt-3 text-sm">
+              <CookiePreferencesButton />
+            </div>
+          </div>
         </div>
       </div>
     </footer>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { consumeContactRequest } from "@/lib/contact-rate-limit";
 import { getResend } from "@/lib/resend";
 
 const MAX_NAME_LENGTH = 120;
@@ -6,8 +7,19 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_MESSAGE_LENGTH = 5000;
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as Record<string, unknown>;
-  const name = String(body.name ?? "").trim();
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > 16_000) {
+    return NextResponse.json({ error: "Please keep your message under 5,000 characters." }, { status: 413 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Please submit the contact form again." }, { status: 400 });
+  }
+
+  const name = String(body.name ?? "").trim().replace(/[\r\n]+/g, " ");
   const email = String(body.email ?? "").trim();
   const message = String(body.message ?? "").trim();
   const website = String(body.website ?? "").trim();
@@ -18,6 +30,14 @@ export async function POST(request: Request) {
 
   if (!name || name.length > MAX_NAME_LENGTH || !isEmail(email) || email.length > MAX_EMAIL_LENGTH || message.length < 10 || message.length > MAX_MESSAGE_LENGTH) {
     return NextResponse.json({ error: "Please enter a name, a valid email address and a message between 10 and 5,000 characters." }, { status: 400 });
+  }
+
+  const rateLimit = consumeContactRequest(getClientIdentifier(request));
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Please wait a few minutes before sending another message." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
   }
 
   const resend = getResend();
@@ -49,4 +69,10 @@ export async function POST(request: Request) {
 
 function isEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function getClientIdentifier(request: Request) {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? request.headers.get("x-real-ip")
+    ?? "unknown";
 }

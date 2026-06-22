@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 const consentKey = "liorabump-analytics-consent";
 
@@ -11,7 +11,28 @@ export function AnalyticsConsent({ measurementId }: { measurementId?: string }) 
   const storedConsent = useSyncExternalStore(subscribeToConsent, readConsent, () => null);
   const consent = selectedConsent ?? storedConsent;
 
+  const updateGoogleConsent = useCallback((choice: "accepted" | "declined") => {
+    if (!measurementId) return;
+
+    (window as unknown as Record<string, boolean>)[`ga-disable-${measurementId}`] = choice !== "accepted";
+    window.gtag?.("consent", "update", {
+      analytics_storage: choice === "accepted" ? "granted" : "denied"
+    });
+  }, [measurementId]);
+
+  useEffect(() => {
+    function openPreferences() {
+      updateGoogleConsent("declined");
+      setSelectedConsent(null);
+      window.localStorage.removeItem(consentKey);
+    }
+
+    window.addEventListener("liorabump:open-cookie-preferences", openPreferences);
+    return () => window.removeEventListener("liorabump:open-cookie-preferences", openPreferences);
+  }, [updateGoogleConsent]);
+
   function setChoice(choice: "accepted" | "declined") {
+    updateGoogleConsent(choice);
     window.localStorage.setItem(consentKey, choice);
     setSelectedConsent(choice);
   }
@@ -24,7 +45,7 @@ export function AnalyticsConsent({ measurementId }: { measurementId?: string }) 
         <>
           <Script src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} strategy="afterInteractive" />
           <Script id="ga4-init" strategy="afterInteractive">
-            {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} window.gtag = gtag; gtag('js', new Date()); gtag('config', '${measurementId}', { anonymize_ip: true });`}
+            {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} window.gtag = gtag; gtag('consent', 'default', { analytics_storage: 'denied' }); window['ga-disable-${measurementId}'] = false; gtag('consent', 'update', { analytics_storage: 'granted' }); gtag('js', new Date()); gtag('config', '${measurementId}', { anonymize_ip: true });`}
           </Script>
         </>
       ) : null}
