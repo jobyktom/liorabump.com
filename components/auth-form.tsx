@@ -97,6 +97,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <button disabled={isLoading} className="h-14 rounded-2xl bg-navy font-bold text-white disabled:opacity-60">
         {isLoading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
       </button>
+      {mode === "login" ? <Link href="/forgot-password" className="-mt-1 text-center text-sm font-bold text-coral">Forgot your password?</Link> : null}
       {message ? <p className="rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">{message}</p> : null}
       <p className="text-center text-sm text-slate">
         {mode === "signup" ? "Already have an account?" : "New to LioraBump?"}{" "}
