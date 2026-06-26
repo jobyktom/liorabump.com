@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
 import { FileText, ImageIcon, Trash2 } from "lucide-react";
 import { deleteMediaAsset, renameMediaAsset } from "@/app/actions/media-assets";
+import { authOptions } from "@/auth";
 import { AppRecordForm } from "@/components/app-record-form";
 import { MediaUploadForm } from "@/components/media-upload-form";
 import { PublicShell } from "@/components/site-shell";
@@ -27,7 +29,8 @@ export default async function AppSectionPage({ params }: { params: Promise<{ sec
   if (!details) notFound();
 
   const Icon = details.icon;
-  const [current, records] = await Promise.all([getCurrentFamily(), getSectionRecords(section)]);
+  const [current, records, session] = await Promise.all([getCurrentFamily(), getSectionRecords(section), getServerSession(authOptions)]);
+  const isSignedIn = Boolean(session?.user?.email);
   const mediaCount = current ? await getMediaAssetCount(current.family.id) : 0;
   const uploadLimit = getUploadLimit(current?.family.subscription_plan);
   const planName = `${current?.family.subscription_plan ?? "free"} plan`;
@@ -65,13 +68,15 @@ export default async function AppSectionPage({ params }: { params: Promise<{ sec
               </>
             ) : (
               <div className="mt-6 rounded-2xl bg-peach/70 p-5 text-sm leading-6 text-navy">
-                Sign in and complete onboarding before saving records here.
+                {isSignedIn ? "Complete onboarding before saving records here." : "Sign in and complete onboarding before saving records here."}
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/login" className="rounded-xl bg-navy px-4 py-3 font-bold text-white">
-                    Sign in
-                  </Link>
-                  <Link href="/app/onboarding" className="rounded-xl bg-white px-4 py-3 font-bold text-navy">
-                    Onboarding
+                  {isSignedIn ? null : (
+                    <Link href="/login" className="rounded-xl bg-navy px-4 py-3 font-bold text-white">
+                      Sign in
+                    </Link>
+                  )}
+                  <Link href="/app/onboarding" className={`${isSignedIn ? "bg-navy text-white" : "bg-white text-navy"} rounded-xl px-4 py-3 font-bold`}>
+                    Continue setup
                   </Link>
                 </div>
               </div>

@@ -39,8 +39,15 @@ export async function saveOnboarding(_state: OnboardingState, formData: FormData
   }
 
   const familyId = randomUUID();
+  const prisma = getPrisma();
+  const existingMember = await prisma.familyMember.findFirst({ where: { profileId: user.id }, select: { familyId: true } });
+  const existingOwnedFamily = await prisma.family.findFirst({ where: { ownerId: user.id }, select: { id: true } });
+
+  if (existingMember || existingOwnedFamily) {
+    redirect("/app");
+  }
+
   try {
-    const prisma = getPrisma();
     await prisma.user.update({ where: { id: user.id }, data: { role, country } });
     await prisma.family.create({
       data: {

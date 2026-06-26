@@ -19,8 +19,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setMessage(null);
 
     try {
-      const next = new URLSearchParams(window.location.search).get("next");
-      const safeNext = next?.startsWith("/") ? next : null;
+      const safeNext = getSafeNextFromWindow();
 
       if (mode === "signup") {
         trackAnalyticsEvent("begin_signup");
@@ -29,7 +28,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fullName,
-          email,
+            email,
             password
           })
         });
@@ -100,7 +99,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         {isLoading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
       </button>
       <div className="grid gap-3">
-        <button type="button" onClick={() => void signIn("google", { callbackUrl: "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
+        <button type="button" onClick={() => void signIn("google", { callbackUrl: getSafeNextFromWindow() ?? "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
           Continue with Google
         </button>
       </div>
@@ -108,10 +107,27 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       {message ? <p className="rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">{message}</p> : null}
       <p className="text-center text-sm text-slate">
         {mode === "signup" ? "Already have an account?" : "New to LioraBump?"}{" "}
-        <Link href={mode === "signup" ? "/login" : "/signup"} className="font-bold text-coral">
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = switchAuthHref(mode, getSafeNextFromWindow());
+          }}
+          className="font-bold text-coral"
+        >
           {mode === "signup" ? "Sign in" : "Create an account"}
-        </Link>
+        </button>
       </p>
     </form>
   );
+}
+
+function switchAuthHref(mode: AuthMode, safeNext: string | null) {
+  const href = mode === "signup" ? "/login" : "/signup";
+  return safeNext ? `${href}?next=${encodeURIComponent(safeNext)}` : href;
+}
+
+function getSafeNextFromWindow() {
+  if (typeof window === "undefined") return null;
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") ? next : null;
 }

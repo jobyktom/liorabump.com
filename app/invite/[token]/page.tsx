@@ -43,27 +43,37 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Family invite</p>
             <h1 className="mt-4 font-serif text-5xl font-bold text-navy">Join {familyName}&apos;s LioraBump workspace.</h1>
             <p className="mt-5 text-lg leading-8 text-slate">
-              This invite is for <strong>{invitedEmail}</strong>. You need to sign in with that email before accepting.
+              This invite connects <strong>{invitedEmail}</strong> to the existing family workspace. Sign in or create an account with that exact email, then accept the invite here.
+            </p>
+            <p className="mt-3 text-sm leading-6 text-slate">
+              You do not need to create a separate pregnancy dashboard. The invite will add you as a partner or family member to this workspace.
             </p>
 
             {invite.status !== "pending" ? (
-              <p className="mt-6 rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">
+              <div className="mt-6 rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">
                 This invite has already been used or cancelled.
-              </p>
+                {isCorrectEmail ? (
+                  <div className="mt-4">
+                    <Link href="/app" className="inline-flex rounded-xl bg-navy px-4 py-3 font-bold text-white">
+                      Open workspace
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
             ) : !isSignedIn ? (
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href={`/login?next=/invite/${invite.id}`} className="rounded-xl bg-navy px-4 py-3 font-bold text-white">
-                  Sign in
+                  Sign in as invited email
                 </Link>
                 <Link href={`/signup?next=/invite/${invite.id}`} className="rounded-xl bg-white px-4 py-3 font-bold text-navy">
-                  Create account
+                  Create account with invited email
                 </Link>
               </div>
             ) : isCorrectEmail ? (
               <AcceptInviteForm inviteId={invite.id} />
             ) : (
               <p className="mt-6 rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">
-                You are signed in as {userEmail}. Sign out and use {invitedEmail} to accept this invite.
+                You are signed in as {userEmail}. Use the Sign out option in the top menu, then sign in with {invitedEmail} to accept this invite.
               </p>
             )}
           </div>

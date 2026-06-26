@@ -46,7 +46,11 @@ export async function getCurrentFamily(): Promise<CurrentFamily | null> {
     const prisma = getPrisma();
     const profile = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } });
 
-    const member = await prisma.familyMember.findFirst({ where: { profileId: user.id }, select: { familyId: true } });
+    const member = await prisma.familyMember.findFirst({
+      where: { profileId: user.id },
+      orderBy: { consentGrantedAt: "desc" },
+      select: { familyId: true }
+    });
 
     const family = member?.familyId
       ? await prisma.family.findUnique({ where: { id: member.familyId } })
