@@ -6,9 +6,23 @@ create table if not exists profiles (
   id char(36) primary key,
   email varchar(254) not null unique,
   full_name varchar(255),
+  password_hash varchar(255),
+  email_verified_at timestamp null,
+  auth_provider varchar(40) not null default 'password',
   role enum('mother', 'partner', 'family_viewer', 'admin', 'sponsor') not null default 'mother',
   country varchar(120),
   created_at timestamp not null default current_timestamp
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+create table if not exists password_reset_tokens (
+  id char(36) primary key,
+  profile_id char(36) not null,
+  token_hash char(64) not null unique,
+  expires_at timestamp not null,
+  used_at timestamp null,
+  created_at timestamp not null default current_timestamp,
+  index password_reset_tokens_profile_id_idx (profile_id),
+  constraint password_reset_tokens_profile_id_fk foreign key (profile_id) references profiles(id) on delete cascade
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 create table if not exists families (

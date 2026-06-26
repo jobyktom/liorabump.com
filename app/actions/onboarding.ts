@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomUUID } from "crypto";
 import type { PrivacyLevel, UserRole } from "@/lib/database.types";
-import { createClient } from "@/lib/supabase/server";
+import { authOptions } from "@/auth";
+import { execute } from "@/lib/mysql";
+import { getServerSession } from "next-auth";
 
 export type OnboardingState = {
   ok: boolean;
@@ -14,22 +17,10 @@ const roles: UserRole[] = ["mother", "partner", "family_viewer", "admin", "spons
 const privacyLevels: PrivacyLevel[] = ["private", "partner", "family"];
 
 export async function saveOnboarding(_state: OnboardingState, formData: FormData): Promise<OnboardingState> {
-  let supabase;
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
 
-  try {
-    supabase = await createClient();
-  } catch {
-    return {
-      ok: false,
-      message: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    };
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user?.email) {
+  if (!user?.id || !user.email) {
     return {
       ok: false,
       message: "Please create an account or sign in before saving your journey."
@@ -47,55 +38,25 @@ export async function saveOnboarding(_state: OnboardingState, formData: FormData
     return { ok: false, message: "Please add country and baby nickname." };
   }
 
-  const { error: profileError } = await supabase.from("profiles").upsert({
-    id: user.id,
-    email: user.email,
-    full_name: user.user_metadata?.full_name ?? null,
-    role,
-    country
-  });
-
-  if (profileError) {
-    return { ok: false, message: profileError.message };
-  }
-
-  const { data: family, error: familyError } = await supabase
-    .from("families")
-    .insert({
-      owner_id: user.id,
-      baby_nickname: babyNickname,
-      due_date: dueDate,
-      country,
-      privacy_level: privacy
-    })
-    .select("id")
-    .single();
-
-  if (familyError || !family) {
-    return { ok: false, message: familyError?.message ?? "Could not create family journey." };
-  }
-
-  const { error: memberError } = await supabase.from("family_members").insert({
-    family_id: family.id,
-    profile_id: user.id,
-    member_role: role,
-    consent_granted_at: new Date().toISOString()
-  });
-
-  if (memberError) {
-    return { ok: false, message: memberError.message };
-  }
-
-  if (invitePartnerEmail) {
-    const { error: inviteError } = await supabase.from("partner_invites").insert({
-      family_id: family.id,
-      invited_email: invitePartnerEmail,
-      invited_by: user.id
-    });
-
-    if (inviteError) {
-      return { ok: false, message: inviteError.message };
+  const familyId = randomUUID();
+  try {
+    await execute("update profiles set role = ?, country = ? where id = ?", [role, country, user.id]);
+    await execute(
+      "insert into families (id,owner_id,baby_nickname,due_date,country,privacy_level) values (?,?,?,?,?,?)",
+      [familyId, user.id, babyNickname, dueDate, country, privacy]
+    );
+    await execute(
+      "insert into family_members (family_id,profile_id,member_role,consent_granted_at) values (?,?,?,?)",
+      [familyId, user.id, role, new Date()]
+    );
+    if (invitePartnerEmail) {
+      await execute(
+        "insert into partner_invites (id,family_id,invited_email,invited_by,status) values (?,?,?,?,?)",
+        [randomUUID(), familyId, invitePartnerEmail.toLowerCase(), user.id, "pending"]
+      );
     }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Could not create family journey." };
   }
 
   revalidatePath("/app");

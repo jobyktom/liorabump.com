@@ -81,7 +81,7 @@ export default async function AppDashboardPage() {
               <div className="card p-6 md:p-8">
                 <h2 className="font-serif text-3xl font-bold text-navy">Set up your family workspace</h2>
                 <p className="mt-4 text-sm leading-6 text-slate">
-                  Sign in and complete onboarding to load your pregnancy dashboard from Supabase.
+                  Sign in and complete onboarding to load your pregnancy dashboard.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link href="/login" className="rounded-xl bg-navy px-4 py-3 font-bold text-white">

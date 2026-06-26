@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { signIn } from "next-auth/react";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type AuthMode = "login" | "signup";
@@ -19,29 +19,31 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setMessage(null);
 
     try {
-      const supabase = createClient();
       const next = new URLSearchParams(window.location.search).get("next");
       const safeNext = next?.startsWith("/") ? next : null;
 
       if (mode === "signup") {
         trackAnalyticsEvent("begin_signup");
-        const { error } = await supabase.auth.signUp({
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fullName,
           email,
-          password,
-          options: {
-            data: {
-              full_name: fullName
-            },
-            emailRedirectTo: `${window.location.origin}/auth/callback${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ""}`
-          }
+            password
+          })
         });
 
-        if (error) throw error;
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error ?? "Could not create your account.");
+
+        const signInResult = await signIn("credentials", { email, password, redirect: false });
+        if (signInResult?.error) throw new Error("Account created, but sign in failed. Please sign in manually.");
         trackAnalyticsEvent("sign_up");
-        setMessage("Check your email to confirm your account, then sign in.");
+        window.location.href = safeNext ?? "/app/onboarding";
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const result = await signIn("credentials", { email, password, redirect: false });
+        if (result?.error) throw new Error("Email or password is incorrect.");
         window.location.href = safeNext ?? "/app";
       }
     } catch (error) {
@@ -97,6 +99,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <button disabled={isLoading} className="h-14 rounded-2xl bg-navy font-bold text-white disabled:opacity-60">
         {isLoading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
       </button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => void signIn("google", { callbackUrl: "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
+          Continue with Google
+        </button>
+        <button type="button" onClick={() => void signIn("facebook", { callbackUrl: "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
+          Continue with Facebook
+        </button>
+      </div>
       {mode === "login" ? <Link href="/forgot-password" className="-mt-1 text-center text-sm font-bold text-coral">Forgot your password?</Link> : null}
       {message ? <p className="rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">{message}</p> : null}
       <p className="text-center text-sm text-slate">

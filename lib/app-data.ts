@@ -1,6 +1,8 @@
-import { hasSupabaseEnv } from "@/lib/env";
 import { isImageStoragePath, isPdfStoragePath, parseStoragePath } from "@/lib/media";
-import { createClient } from "@/lib/supabase/server";
+import { authOptions } from "@/auth";
+import { queryRows } from "@/lib/mysql";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerSession } from "next-auth";
 
 export type CurrentFamily = {
   userId: string;
@@ -35,40 +37,25 @@ export type AppRecord = {
 };
 
 export async function getCurrentFamily(): Promise<CurrentFamily | null> {
-  if (!hasSupabaseEnv()) return null;
-
   try {
-    const supabase = await createClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const session = await getServerSession(authOptions);
+    const user = session?.user;
 
-    if (!user?.email) return null;
+    if (!user?.id || !user.email) return null;
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [profile] = await queryRows<{ full_name: string | null }>("select full_name from profiles where id = ? limit 1", [user.id]);
 
-    const { data: member } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("profile_id", user.id)
-      .limit(1)
-      .maybeSingle();
+    const [member] = await queryRows<{ family_id: string }>("select family_id from family_members where profile_id = ? limit 1", [user.id]);
 
-    const query = supabase
-      .from("families")
-      .select(
-        "id,owner_id,baby_nickname,due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at"
-      )
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    const { data: family } = member?.family_id
-      ? await query.eq("id", member.family_id).maybeSingle()
-      : await query.eq("owner_id", user.id).maybeSingle();
+    const [family] = member?.family_id
+      ? await queryRows<CurrentFamily["family"]>(
+          "select id,owner_id,baby_nickname,date_format(due_date, '%Y-%m-%d') as due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at from families where id = ? limit 1",
+          [member.family_id]
+        )
+      : await queryRows<CurrentFamily["family"]>(
+          "select id,owner_id,baby_nickname,date_format(due_date, '%Y-%m-%d') as due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at from families where owner_id = ? order by created_at desc limit 1",
+          [user.id]
+        );
 
     if (!family) return null;
 
@@ -87,54 +74,42 @@ export async function getDashboardData() {
   const current = await getCurrentFamily();
   if (!current) return null;
 
-  const supabase = await createClient();
   const familyId = current.family.id;
   const now = new Date().toISOString();
 
   const [appointments, health, journal, media, milestones, invites] = await Promise.all([
-    supabase
-      .from("appointments")
-      .select("id,title,starts_at,appointment_type,notes")
-      .eq("family_id", familyId)
-      .gte("starts_at", now)
-      .order("starts_at", { ascending: true })
-      .limit(3),
-    supabase
-      .from("health_entries")
-      .select("id,entry_type,value,recorded_at")
-      .eq("family_id", familyId)
-      .order("recorded_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("journal_entries")
-      .select("id,title,body,created_at")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("media_assets")
-      .select("id,caption,asset_type,created_at")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false })
-      .limit(3),
-    supabase
-      .from("baby_milestones")
-      .select("id,title,happened_on,notes")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false })
-      .limit(3),
-    supabase.from("partner_invites").select("id,status").eq("family_id", familyId)
+    queryRows<{ id: string; title: string; starts_at: string; appointment_type: string | null; notes: string | null }>(
+      "select id,title,starts_at,appointment_type,notes from appointments where family_id = ? and starts_at >= ? order by starts_at asc limit 3",
+      [familyId, now]
+    ),
+    queryRows<{ id: string; entry_type: string; value: Record<string, unknown>; recorded_at: string }>(
+      "select id,entry_type,value,recorded_at from health_entries where family_id = ? order by recorded_at desc limit 3",
+      [familyId]
+    ),
+    queryRows<{ id: string; title: string | null; body: string; created_at: string }>(
+      "select id,title,body,created_at from journal_entries where family_id = ? order by created_at desc limit 3",
+      [familyId]
+    ),
+    queryRows<{ id: string; caption: string | null; asset_type: string; created_at: string }>(
+      "select id,caption,asset_type,created_at from media_assets where family_id = ? order by created_at desc limit 3",
+      [familyId]
+    ),
+    queryRows<{ id: string; title: string; happened_on: string | null; notes: string | null }>(
+      "select id,title,happened_on,notes from baby_milestones where family_id = ? order by created_at desc limit 3",
+      [familyId]
+    ),
+    queryRows<{ id: string; status: string }>("select id,status from partner_invites where family_id = ?", [familyId])
   ]);
 
   return {
     current,
     pregnancy: calculatePregnancyProgress(current.family.due_date),
-    upcomingAppointments: appointments.data ?? [],
-    recentHealth: health.data ?? [],
-    recentJournal: journal.data ?? [],
-    recentMedia: media.data ?? [],
-    recentMilestones: milestones.data ?? [],
-    inviteCount: invites.data?.length ?? 0
+    upcomingAppointments: appointments,
+    recentHealth: health.map((entry) => ({ ...entry, value: normalizeJson(entry.value) })),
+    recentJournal: journal,
+    recentMedia: media,
+    recentMilestones: milestones,
+    inviteCount: invites.length
   };
 }
 
@@ -211,18 +186,15 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
   const current = await getCurrentFamily();
   if (!current) return [];
 
-  const supabase = await createClient();
   const familyId = current.family.id;
 
   if (section === "calendar") {
-    const { data } = await supabase
-      .from("appointments")
-      .select("id,title,appointment_type,starts_at,notes")
-      .eq("family_id", familyId)
-      .order("starts_at", { ascending: true })
-      .limit(20);
+    const data = await queryRows<{ id: string; title: string; appointment_type: string | null; starts_at: string; notes: string | null }>(
+      "select id,title,appointment_type,starts_at,notes from appointments where family_id = ? order by starts_at asc limit 20",
+      [familyId]
+    );
 
-    return (data ?? []).map((item) => ({
+    return data.map((item) => ({
       id: item.id,
       title: item.title,
       detail: item.notes ?? item.appointment_type ?? "Appointment",
@@ -231,15 +203,12 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
   }
 
   if (section === "journal" || section === "birth-plan") {
-    const { data } = await supabase
-      .from("journal_entries")
-      .select("id,title,body,pregnancy_week,created_at")
-      .eq("family_id", familyId)
-      .eq("title", section === "birth-plan" ? "Birth plan" : "Journal")
-      .order("created_at", { ascending: false })
-      .limit(20);
+    const data = await queryRows<{ id: string; title: string | null; body: string; pregnancy_week: number | null; created_at: string }>(
+      "select id,title,body,pregnancy_week,created_at from journal_entries where family_id = ? and title = ? order by created_at desc limit 20",
+      [familyId, section === "birth-plan" ? "Birth plan" : "Journal"]
+    );
 
-    return (data ?? []).map((item) => ({
+    return data.map((item) => ({
       id: item.id,
       title: item.title ?? "Journal",
       detail: item.body,
@@ -248,25 +217,23 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
   }
 
   if (section === "album") {
-    return getMediaRecords(supabase, familyId, "photo", "pregnancy-photos");
+    return getMediaRecords(familyId, "photo", "pregnancy-photos");
   }
 
   if (section === "scan-uploads") {
-    return getMediaRecords(supabase, familyId, "scan", "scan-uploads");
+    return getMediaRecords(familyId, "scan", "scan-uploads");
   }
 
   if (section === "baby-profile") {
-    const [{ data }, mediaRecords] = await Promise.all([
-      supabase
-      .from("baby_milestones")
-      .select("id,title,happened_on,notes,created_at")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false })
-        .limit(20),
-      getMediaRecords(supabase, familyId, "photo", "baby-albums")
+    const [data, mediaRecords] = await Promise.all([
+      queryRows<{ id: string; title: string; happened_on: string | null; notes: string | null; created_at: string }>(
+        "select id,title,happened_on,notes,created_at from baby_milestones where family_id = ? order by created_at desc limit 20",
+        [familyId]
+      ),
+      getMediaRecords(familyId, "photo", "baby-albums")
     ]);
 
-    const milestoneRecords = (data ?? []).map((item) => ({
+    const milestoneRecords = data.map((item) => ({
       id: item.id,
       title: item.title,
       detail: item.notes ?? "Milestone",
@@ -277,50 +244,45 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
   }
 
   const entryType = sectionEntryType(section);
-  const [{ data }, documentRecords] = await Promise.all([
-    supabase
-    .from("health_entries")
-    .select("id,entry_type,value,recorded_at")
-    .eq("family_id", familyId)
-    .eq("entry_type", entryType)
-    .order("recorded_at", { ascending: false })
-      .limit(20),
-    section === "health-tracker" ? getMediaRecords(supabase, familyId, "document", "health-documents") : Promise.resolve([])
+  const [data, documentRecords] = await Promise.all([
+    queryRows<{ id: string; entry_type: string; value: Record<string, unknown>; recorded_at: string }>(
+      "select id,entry_type,value,recorded_at from health_entries where family_id = ? and entry_type = ? order by recorded_at desc limit 20",
+      [familyId, entryType]
+    ),
+    section === "health-tracker" ? getMediaRecords(familyId, "document", "health-documents") : Promise.resolve([])
   ]);
 
-  const entryRecords = (data ?? []).map((item) => ({
+  const entryRecords = data.map((item) => {
+    const value = normalizeJson(item.value);
+    return {
     id: item.id,
-    title: typeof item.value.title === "string" ? item.value.title : labelForEntryType(item.entry_type),
-    detail: typeof item.value.note === "string" ? item.value.note : JSON.stringify(item.value),
+      title: typeof value.title === "string" ? value.title : labelForEntryType(item.entry_type),
+      detail: typeof value.note === "string" ? value.note : JSON.stringify(value),
     meta: formatDate(item.recorded_at)
-  }));
+    };
+  });
 
   return [...documentRecords, ...entryRecords].slice(0, 20);
 }
 
 export async function getMediaAssetCount(familyId: string) {
-  const supabase = await createClient();
-  const { count } = await supabase.from("media_assets").select("id", { count: "exact", head: true }).eq("family_id", familyId);
-  return count ?? 0;
+  const [row] = await queryRows<{ count: number }>("select count(*) as count from media_assets where family_id = ?", [familyId]);
+  return row?.count ?? 0;
 }
 
 async function getMediaRecords(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   familyId: string,
   assetType: "photo" | "scan" | "document",
   bucket: string
 ): Promise<AppRecord[]> {
-  const { data } = await supabase
-    .from("media_assets")
-    .select("id,asset_type,storage_path,caption,created_at")
-    .eq("family_id", familyId)
-    .eq("asset_type", assetType)
-    .like("storage_path", `${bucket}/%`)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const data = await queryRows<{ id: string; asset_type: string; storage_path: string; caption: string | null; created_at: string }>(
+    "select id,asset_type,storage_path,caption,created_at from media_assets where family_id = ? and asset_type = ? and storage_path like ? order by created_at desc limit 20",
+    [familyId, assetType, `${bucket}/%`]
+  );
+  const supabase = createAdminClient();
 
   return Promise.all(
-    (data ?? []).map(async (item) => {
+    data.map(async (item) => {
       const signedUrl = await createPrivateFileUrl(supabase, item.storage_path);
 
       return {
@@ -338,7 +300,7 @@ async function getMediaRecords(
   );
 }
 
-async function createPrivateFileUrl(supabase: Awaited<ReturnType<typeof createClient>>, storagePath: string) {
+async function createPrivateFileUrl(supabase: ReturnType<typeof createAdminClient>, storagePath: string) {
   const parsed = parseStoragePath(storagePath);
   if (!parsed) return null;
 
@@ -368,4 +330,16 @@ function labelForEntryType(entryType: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function normalizeJson(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as Record<string, unknown>;
+    } catch {
+      return { note: value };
+    }
+  }
+  if (value && typeof value === "object") return value as Record<string, unknown>;
+  return {};
 }

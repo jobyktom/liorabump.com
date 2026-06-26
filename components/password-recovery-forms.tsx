@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export function RequestPasswordResetForm() {
   const [email, setEmail] = useState("");
@@ -14,10 +13,11 @@ export function RequestPasswordResetForm() {
     setMessage(null);
 
     try {
-      const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-      if (error) throw error;
+      await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
       setMessage("If an account exists for that email address, we have sent a password-reset link. Please check your inbox and spam folder.");
     } catch {
       setMessage("We could not request a reset email just now. Please try again shortly.");
@@ -62,13 +62,18 @@ export function UpdatePasswordForm() {
     setMessage(null);
     setIsUpdated(false);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const token = new URLSearchParams(window.location.search).get("token");
+      const response = await fetch("/api/auth/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password })
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Could not reset your password.");
       setIsUpdated(true);
       setMessage("Your password has been updated. You can now continue to your dashboard.");
-    } catch {
-      setMessage("This reset link is invalid or has expired. Please request a new password-reset email.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "This reset link is invalid or has expired. Please request a new password-reset email.");
     } finally {
       setIsLoading(false);
     }

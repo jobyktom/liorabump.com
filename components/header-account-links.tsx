@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 
 export function HeaderAccountNav() {
   const hasSession = useSessionState();
@@ -35,20 +34,17 @@ function useSessionState() {
   const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
     let active = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) setHasSession(Boolean(data.session));
+    void fetch("/api/auth/session").then(async (response) => {
+      const data = (await response.json()) as { user?: unknown };
+      if (active) setHasSession(Boolean(data.user));
+    }).catch(() => {
+      if (active) setHasSession(false);
     });
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => setHasSession(Boolean(session)));
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, []);
 

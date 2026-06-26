@@ -17,7 +17,7 @@ export default function OnboardingPage() {
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-peachDeep">Onboarding</p>
             <h1 className="mt-4 font-serif text-5xl font-bold leading-tight text-navy">Create your private family journey.</h1>
             <p className="mt-5 text-lg leading-8 text-slate">
-              Save your role, due date, privacy preference and family invite into your private Supabase-backed workspace.
+              Save your role, due date, privacy preference and family invite into your private LioraBump workspace.
             </p>
             <div className="mt-8">
               <MedicalNotice />
