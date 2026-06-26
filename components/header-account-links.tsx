@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
+let cachedHasSession: boolean | null = null;
+
 export function HeaderAccountNav() {
   const hasSession = useSessionState();
   const pathname = usePathname();
@@ -59,15 +61,18 @@ export function HeaderAccountButton() {
 }
 
 function useSessionState() {
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [hasSession, setHasSession] = useState<boolean | null>(cachedHasSession);
 
   useEffect(() => {
     let active = true;
 
-    void fetch("/api/auth/session").then(async (response) => {
+    void fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
       const data = (await response.json()) as { user?: unknown };
-      if (active) setHasSession(Boolean(data.user));
+      const nextHasSession = Boolean(data.user);
+      cachedHasSession = nextHasSession;
+      if (active) setHasSession(nextHasSession);
     }).catch(() => {
+      cachedHasSession = false;
       if (active) setHasSession(false);
     });
 
