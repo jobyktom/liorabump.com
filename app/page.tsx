@@ -4,6 +4,9 @@ import { PublicShell } from "@/components/site-shell";
 import { ButtonLink, LifestyleImage, MedicalNotice, SectionHeading } from "@/components/ui";
 import { appActions, featureCards } from "@/lib/content";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function HomePage() {
   return (
     <PublicShell>
