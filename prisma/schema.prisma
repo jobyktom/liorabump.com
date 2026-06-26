@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Char(36)
+  email         String    @unique @db.VarChar(254)
+  name          String?   @map("full_name") @db.VarChar(255)
+  image         String?   @db.VarChar(500)
+  emailVerified DateTime? @map("email_verified_at")
+  passwordHash  String?   @map("password_hash") @db.VarChar(255)
+  authProvider  String    @default("password") @map("auth_provider") @db.VarChar(40)
+  role          UserRole  @default(mother)
+  country       String?   @db.VarChar(120)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  ownedFamilies Family[]        @relation("FamilyOwner")
+  memberships   FamilyMember[]
+  journalEntries JournalEntry[]
+  mediaAssets   MediaAsset[]
+  resetTokens   PasswordResetToken[]
+
+  @@map("profiles")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id") @db.Char(36)
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Char(36)
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Char(36)
+  profileId String   @map("profile_id") @db.Char(36)
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("password_reset_tokens")
+}
+
+model Family {
+  id                   String       @id @default(uuid()) @db.Char(36)
+  ownerId              String       @map("owner_id") @db.Char(36)
+  babyNickname         String       @map("baby_nickname") @db.VarChar(255)
+  dueDate              DateTime?    @map("due_date") @db.Date
+  country              String?      @db.VarChar(120)
+  privacyLevel         PrivacyLevel @default(private) @map("privacy_level")
+  subscriptionPlan     String       @default("free") @map("subscription_plan") @db.VarChar(50)
+  stripeCustomerId     String?      @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId String?      @map("stripe_subscription_id") @db.VarChar(255)
+  createdAt            DateTime     @default(now()) @map("created_at")
+
+  owner         User            @relation("FamilyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       FamilyMember[]
+  invites       PartnerInvite[]
+  appointments  Appointment[]
+  healthEntries HealthEntry[]
+  journalEntries JournalEntry[]
+  mediaAssets   MediaAsset[]
+  babyMilestones BabyMilestone[]
+  coupleTasks   CoupleTask[]
+
+  @@index([ownerId])
+  @@map("families")
+}
+
+model FamilyMember {
+  familyId         String    @map("family_id") @db.Char(36)
+  profileId        String    @map("profile_id") @db.Char(36)
+  memberRole       UserRole  @map("member_role")
+  consentGrantedAt DateTime? @map("consent_granted_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([familyId, profileId])
+  @@index([profileId])
+  @@map("family_members")
+}
+
+model PartnerInvite {
+  id           String   @id @default(uuid()) @db.Char(36)
+  familyId     String   @map("family_id") @db.Char(36)
+  invitedEmail String   @map("invited_email") @db.VarChar(254)
+  invitedBy    String   @map("invited_by") @db.Char(36)
+  status       String   @default("pending") @db.VarChar(40)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([invitedBy])
+  @@map("partner_invites")
+}
+
+model Appointment {
+  id              String   @id @default(uuid()) @db.Char(36)
+  familyId        String   @map("family_id") @db.Char(36)
+  title           String   @db.VarChar(255)
+  appointmentType String?  @map("appointment_type") @db.VarChar(120)
+  startsAt        DateTime @map("starts_at")
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, startsAt])
+  @@map("appointments")
+}
+
+model HealthEntry {
+  id         String   @id @default(uuid()) @db.Char(36)
+  familyId   String   @map("family_id") @db.Char(36)
+  entryType  String   @map("entry_type") @db.VarChar(120)
+  value      Json
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, recordedAt])
+  @@map("health_entries")
+}
+
+model JournalEntry {
+  id            String   @id @default(uuid()) @db.Char(36)
+  familyId      String   @map("family_id") @db.Char(36)
+  authorId      String   @map("author_id") @db.Char(36)
+  title         String?  @db.VarChar(255)
+  body          String   @db.Text
+  pregnancyWeek Int?     @map("pregnancy_week")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
+  @@index([authorId])
+  @@map("journal_entries")
+}
+
+model MediaAsset {
+  id          String    @id @default(uuid()) @db.Char(36)
+  familyId    String    @map("family_id") @db.Char(36)
+  ownerId     String    @map("owner_id") @db.Char(36)
+  assetType   AssetType @map("asset_type")
+  storagePath String    @map("storage_path") @db.Text
+  caption     String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  owner  User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  babyMilestones BabyMilestone[]
+
+  @@index([familyId, createdAt])
+  @@index([ownerId])
+  @@map("media_assets")
+}
+
+model BabyMilestone {
+  id           String   @id @default(uuid()) @db.Char(36)
+  familyId     String   @map("family_id") @db.Char(36)
+  title        String   @db.VarChar(255)
+  happenedOn   DateTime? @map("happened_on") @db.Date
+  notes        String?  @db.Text
+  mediaAssetId String?  @map("media_asset_id") @db.Char(36)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt])
+  @@index([mediaAssetId])
+  @@map("baby_milestones")
+}
+
+model CoupleTask {
+  id            String     @id @default(uuid()) @db.Char(36)
+  familyId      String     @map("family_id") @db.Char(36)
+  createdBy     String     @map("created_by") @db.Char(36)
+  title         String     @db.VarChar(255)
+  notes         String?    @db.Text
+  dueDate       DateTime?  @map("due_date") @db.Date
+  assigneeLabel String     @default("Either of us") @map("assignee_label") @db.VarChar(120)
+  status        TaskStatus @default(todo)
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, status, dueDate])
+  @@index([createdBy])
+  @@map("couple_tasks")
+}
+
+enum UserRole {
+  mother
+  partner
+  family_viewer
+  admin
+  sponsor
+}
+
+enum PrivacyLevel {
+  private
+  partner
+  family
+}
+
+enum AssetType {
+  photo
+  video
+  scan
+  document
+  voice_note
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}

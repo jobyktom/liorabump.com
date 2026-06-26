@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
 import type { PrivacyLevel, UserRole } from "@/lib/database.types";
 import { authOptions } from "@/auth";
-import { execute } from "@/lib/mysql";
+import { getPrisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 
 export type OnboardingState = {
@@ -40,20 +40,35 @@ export async function saveOnboarding(_state: OnboardingState, formData: FormData
 
   const familyId = randomUUID();
   try {
-    await execute("update profiles set role = ?, country = ? where id = ?", [role, country, user.id]);
-    await execute(
-      "insert into families (id,owner_id,baby_nickname,due_date,country,privacy_level) values (?,?,?,?,?,?)",
-      [familyId, user.id, babyNickname, dueDate, country, privacy]
-    );
-    await execute(
-      "insert into family_members (family_id,profile_id,member_role,consent_granted_at) values (?,?,?,?)",
-      [familyId, user.id, role, new Date()]
-    );
+    const prisma = getPrisma();
+    await prisma.user.update({ where: { id: user.id }, data: { role, country } });
+    await prisma.family.create({
+      data: {
+        id: familyId,
+        ownerId: user.id,
+        babyNickname,
+        dueDate: dueDate ? new Date(`${dueDate}T00:00:00`) : null,
+        country,
+        privacyLevel: privacy,
+        members: {
+          create: {
+            profileId: user.id,
+            memberRole: role,
+            consentGrantedAt: new Date(),
+          },
+        },
+      },
+    });
     if (invitePartnerEmail) {
-      await execute(
-        "insert into partner_invites (id,family_id,invited_email,invited_by,status) values (?,?,?,?,?)",
-        [randomUUID(), familyId, invitePartnerEmail.toLowerCase(), user.id, "pending"]
-      );
+      await prisma.partnerInvite.create({
+        data: {
+          id: randomUUID(),
+          familyId,
+          invitedEmail: invitePartnerEmail.toLowerCase(),
+          invitedBy: user.id,
+          status: "pending",
+        },
+      });
     }
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Could not create family journey." };

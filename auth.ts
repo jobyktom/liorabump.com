@@ -1,18 +1,11 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import type { Provider } from "next-auth/providers/index";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import FacebookProvider from "next-auth/providers/facebook";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
-import { queryRows, execute, hasMysqlEnv } from "@/lib/mysql";
-
-type ProfileRow = {
-  id: string;
-  email: string;
-  full_name: string | null;
-  password_hash?: string | null;
-};
+import { getPrisma, hasDatabaseUrl } from "@/lib/prisma";
 
 const providers: Provider[] = [
   CredentialsProvider({
@@ -24,31 +17,29 @@ const providers: Provider[] = [
     async authorize(credentials) {
       const email = credentials?.email?.trim().toLowerCase();
       const password = credentials?.password ?? "";
-      if (!email || !password || !hasMysqlEnv()) return null;
+      if (!email || !password || !hasDatabaseUrl()) return null;
 
-      const [profile] = await queryRows<ProfileRow & { password_hash: string | null }>(
-        "select id,email,full_name,password_hash from profiles where email = ? limit 1",
-        [email]
-      );
+      const profile = await getPrisma().user.findUnique({ where: { email } });
 
-      if (!profile?.password_hash) return null;
-      const ok = await bcrypt.compare(password, profile.password_hash);
+      if (!profile?.passwordHash) return null;
+      const ok = await bcrypt.compare(password, profile.passwordHash);
       if (!ok) return null;
 
-      return { id: profile.id, email: profile.email, name: profile.full_name ?? profile.email };
+      return { id: profile.id, email: profile.email, name: profile.name ?? profile.email };
     },
   }),
 ];
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  providers.push(GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }));
+  providers.push(GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, allowDangerousEmailAccountLinking: true }));
 }
 
 if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
-  providers.push(FacebookProvider({ clientId: process.env.FACEBOOK_CLIENT_ID, clientSecret: process.env.FACEBOOK_CLIENT_SECRET }));
+  providers.push(FacebookProvider({ clientId: process.env.FACEBOOK_CLIENT_ID, clientSecret: process.env.FACEBOOK_CLIENT_SECRET, allowDangerousEmailAccountLinking: true }));
 }
 
 export const authOptions: NextAuthOptions = {
+  adapter: hasDatabaseUrl() ? PrismaAdapter(getPrisma()) : undefined,
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   pages: {
@@ -57,21 +48,22 @@ export const authOptions: NextAuthOptions = {
   providers,
   callbacks: {
     async signIn({ user, account }) {
-      if (!hasMysqlEnv() || !user.email) return false;
+      if (!hasDatabaseUrl() || !user.email) return false;
 
-      if (account?.provider !== "credentials") {
-        const profile = await upsertOAuthProfile(user.email, user.name ?? null);
-        user.id = profile.id;
-        user.name = profile.full_name ?? profile.email;
+      if (account?.provider && account.provider !== "credentials" && user.id) {
+        await getPrisma().user.update({
+          where: { id: user.id },
+          data: { authProvider: "oauth", emailVerified: new Date() },
+        });
       }
 
       return true;
     },
     async jwt({ token, user }) {
       if (user?.email) {
-        const profile = await findProfileByEmail(user.email);
+        const profile = await getPrisma().user.findUnique({ where: { email: user.email.toLowerCase() } });
         token.sub = profile?.id ?? user.id;
-        token.name = profile?.full_name ?? user.name;
+        token.name = profile?.name ?? user.name;
         token.email = profile?.email ?? user.email;
       }
       return token;
@@ -86,23 +78,5 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
-
-async function findProfileByEmail(email: string) {
-  const [profile] = await queryRows<ProfileRow>("select id,email,full_name from profiles where email = ? limit 1", [email.toLowerCase()]);
-  return profile ?? null;
-}
-
-async function upsertOAuthProfile(email: string, fullName: string | null) {
-  const normalizedEmail = email.toLowerCase();
-  const existing = await findProfileByEmail(normalizedEmail);
-  if (existing) return existing;
-
-  const id = randomUUID();
-  await execute(
-    "insert into profiles (id,email,full_name,email_verified_at,auth_provider) values (?,?,?,?,?)",
-    [id, normalizedEmail, fullName, new Date(), "oauth"]
-  );
-  return { id, email: normalizedEmail, full_name: fullName };
-}
 
 export const nextAuthHandler = NextAuth(authOptions);

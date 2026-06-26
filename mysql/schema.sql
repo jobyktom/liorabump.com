@@ -6,6 +6,7 @@ create table if not exists profiles (
   id char(36) primary key,
   email varchar(254) not null unique,
   full_name varchar(255),
+  image varchar(500),
   password_hash varchar(255),
   email_verified_at timestamp null,
   auth_provider varchar(40) not null default 'password',
@@ -23,6 +24,40 @@ create table if not exists password_reset_tokens (
   created_at timestamp not null default current_timestamp,
   index password_reset_tokens_profile_id_idx (profile_id),
   constraint password_reset_tokens_profile_id_fk foreign key (profile_id) references profiles(id) on delete cascade
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+create table if not exists accounts (
+  id varchar(191) primary key,
+  user_id char(36) not null,
+  type varchar(191) not null,
+  provider varchar(191) not null,
+  provider_account_id varchar(191) not null,
+  refresh_token text,
+  access_token text,
+  expires_at int,
+  token_type varchar(191),
+  scope varchar(191),
+  id_token text,
+  session_state varchar(191),
+  unique key accounts_provider_provider_account_id_unique (provider, provider_account_id),
+  index accounts_user_id_idx (user_id),
+  constraint accounts_user_id_fk foreign key (user_id) references profiles(id) on delete cascade
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+create table if not exists sessions (
+  id varchar(191) primary key,
+  session_token varchar(191) not null unique,
+  user_id char(36) not null,
+  expires datetime not null,
+  index sessions_user_id_idx (user_id),
+  constraint sessions_user_id_fk foreign key (user_id) references profiles(id) on delete cascade
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
+create table if not exists verification_tokens (
+  identifier varchar(191) not null,
+  token varchar(191) not null unique,
+  expires datetime not null,
+  unique key verification_tokens_identifier_token_unique (identifier, token)
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 create table if not exists families (

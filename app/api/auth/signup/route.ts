@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
-import { execute, queryRows } from "@/lib/mysql";
+import { getPrisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -19,27 +18,26 @@ export async function POST(request: Request) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Use at least 8 characters for your password." }, { status: 400 });
 
-  const [existing] = await queryRows<{ id: string; password_hash: string | null }>(
-    "select id,password_hash from profiles where email = ? limit 1",
-    [email]
-  );
+  const prisma = getPrisma();
+  const existing = await prisma.user.findUnique({ where: { email } });
 
-  if (existing?.password_hash) {
+  if (existing?.passwordHash) {
     return NextResponse.json({ error: "An account already exists for this email. Please sign in instead." }, { status: 409 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
   if (existing) {
-    await execute("update profiles set full_name = ?, password_hash = ?, auth_provider = ? where id = ?", [fullName, passwordHash, "password", existing.id]);
+    await prisma.user.update({ where: { id: existing.id }, data: { name: fullName, passwordHash, authProvider: "password" } });
   } else {
-    await execute("insert into profiles (id,email,full_name,password_hash,auth_provider) values (?,?,?,?,?)", [
-      randomUUID(),
+    await prisma.user.create({
+      data: {
       email,
-      fullName,
-      passwordHash,
-      "password",
-    ]);
+        name: fullName,
+        passwordHash,
+        authProvider: "password",
+      },
+    });
   }
 
   return NextResponse.json({ ok: true });

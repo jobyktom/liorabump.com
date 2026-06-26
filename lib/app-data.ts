@@ -1,6 +1,6 @@
 import { isImageStoragePath, isPdfStoragePath, parseStoragePath } from "@/lib/media";
 import { authOptions } from "@/auth";
-import { queryRows } from "@/lib/mysql";
+import { getPrisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerSession } from "next-auth";
 
@@ -43,27 +43,33 @@ export async function getCurrentFamily(): Promise<CurrentFamily | null> {
 
     if (!user?.id || !user.email) return null;
 
-    const [profile] = await queryRows<{ full_name: string | null }>("select full_name from profiles where id = ? limit 1", [user.id]);
+    const prisma = getPrisma();
+    const profile = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } });
 
-    const [member] = await queryRows<{ family_id: string }>("select family_id from family_members where profile_id = ? limit 1", [user.id]);
+    const member = await prisma.familyMember.findFirst({ where: { profileId: user.id }, select: { familyId: true } });
 
-    const [family] = member?.family_id
-      ? await queryRows<CurrentFamily["family"]>(
-          "select id,owner_id,baby_nickname,date_format(due_date, '%Y-%m-%d') as due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at from families where id = ? limit 1",
-          [member.family_id]
-        )
-      : await queryRows<CurrentFamily["family"]>(
-          "select id,owner_id,baby_nickname,date_format(due_date, '%Y-%m-%d') as due_date,country,privacy_level,subscription_plan,stripe_customer_id,stripe_subscription_id,created_at from families where owner_id = ? order by created_at desc limit 1",
-          [user.id]
-        );
+    const family = member?.familyId
+      ? await prisma.family.findUnique({ where: { id: member.familyId } })
+      : await prisma.family.findFirst({ where: { ownerId: user.id }, orderBy: { createdAt: "desc" } });
 
     if (!family) return null;
 
     return {
       userId: user.id,
       email: user.email,
-      profile,
-      family
+      profile: { full_name: profile?.name ?? null },
+      family: {
+        id: family.id,
+        owner_id: family.ownerId,
+        baby_nickname: family.babyNickname,
+        due_date: dateOnly(family.dueDate),
+        country: family.country,
+        privacy_level: family.privacyLevel,
+        subscription_plan: family.subscriptionPlan,
+        stripe_customer_id: family.stripeCustomerId,
+        stripe_subscription_id: family.stripeSubscriptionId,
+        created_at: family.createdAt.toISOString()
+      }
     };
   } catch {
     return null;
@@ -75,40 +81,26 @@ export async function getDashboardData() {
   if (!current) return null;
 
   const familyId = current.family.id;
-  const now = new Date().toISOString();
+  const now = new Date();
+  const prisma = getPrisma();
 
   const [appointments, health, journal, media, milestones, invites] = await Promise.all([
-    queryRows<{ id: string; title: string; starts_at: string; appointment_type: string | null; notes: string | null }>(
-      "select id,title,starts_at,appointment_type,notes from appointments where family_id = ? and starts_at >= ? order by starts_at asc limit 3",
-      [familyId, now]
-    ),
-    queryRows<{ id: string; entry_type: string; value: Record<string, unknown>; recorded_at: string }>(
-      "select id,entry_type,value,recorded_at from health_entries where family_id = ? order by recorded_at desc limit 3",
-      [familyId]
-    ),
-    queryRows<{ id: string; title: string | null; body: string; created_at: string }>(
-      "select id,title,body,created_at from journal_entries where family_id = ? order by created_at desc limit 3",
-      [familyId]
-    ),
-    queryRows<{ id: string; caption: string | null; asset_type: string; created_at: string }>(
-      "select id,caption,asset_type,created_at from media_assets where family_id = ? order by created_at desc limit 3",
-      [familyId]
-    ),
-    queryRows<{ id: string; title: string; happened_on: string | null; notes: string | null }>(
-      "select id,title,happened_on,notes from baby_milestones where family_id = ? order by created_at desc limit 3",
-      [familyId]
-    ),
-    queryRows<{ id: string; status: string }>("select id,status from partner_invites where family_id = ?", [familyId])
+    prisma.appointment.findMany({ where: { familyId, startsAt: { gte: now } }, orderBy: { startsAt: "asc" }, take: 3 }),
+    prisma.healthEntry.findMany({ where: { familyId }, orderBy: { recordedAt: "desc" }, take: 3 }),
+    prisma.journalEntry.findMany({ where: { familyId }, orderBy: { createdAt: "desc" }, take: 3 }),
+    prisma.mediaAsset.findMany({ where: { familyId }, orderBy: { createdAt: "desc" }, take: 3 }),
+    prisma.babyMilestone.findMany({ where: { familyId }, orderBy: { createdAt: "desc" }, take: 3 }),
+    prisma.partnerInvite.findMany({ where: { familyId }, select: { id: true, status: true } })
   ]);
 
   return {
     current,
     pregnancy: calculatePregnancyProgress(current.family.due_date),
-    upcomingAppointments: appointments,
-    recentHealth: health.map((entry) => ({ ...entry, value: normalizeJson(entry.value) })),
-    recentJournal: journal,
-    recentMedia: media,
-    recentMilestones: milestones,
+    upcomingAppointments: appointments.map((item) => ({ id: item.id, title: item.title, starts_at: item.startsAt.toISOString(), appointment_type: item.appointmentType, notes: item.notes })),
+    recentHealth: health.map((entry) => ({ id: entry.id, entry_type: entry.entryType, value: normalizeJson(entry.value), recorded_at: entry.recordedAt.toISOString() })),
+    recentJournal: journal.map((item) => ({ id: item.id, title: item.title, body: item.body, created_at: item.createdAt.toISOString() })),
+    recentMedia: media.map((item) => ({ id: item.id, caption: item.caption, asset_type: item.assetType, created_at: item.createdAt.toISOString() })),
+    recentMilestones: milestones.map((item) => ({ id: item.id, title: item.title, happened_on: dateOnly(item.happenedOn), notes: item.notes })),
     inviteCount: invites.length
   };
 }
@@ -187,32 +179,27 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
   if (!current) return [];
 
   const familyId = current.family.id;
+  const prisma = getPrisma();
 
   if (section === "calendar") {
-    const data = await queryRows<{ id: string; title: string; appointment_type: string | null; starts_at: string; notes: string | null }>(
-      "select id,title,appointment_type,starts_at,notes from appointments where family_id = ? order by starts_at asc limit 20",
-      [familyId]
-    );
+    const data = await prisma.appointment.findMany({ where: { familyId }, orderBy: { startsAt: "asc" }, take: 20 });
 
     return data.map((item) => ({
       id: item.id,
       title: item.title,
-      detail: item.notes ?? item.appointment_type ?? "Appointment",
-      meta: formatDate(item.starts_at)
+      detail: item.notes ?? item.appointmentType ?? "Appointment",
+      meta: formatDate(item.startsAt.toISOString())
     }));
   }
 
   if (section === "journal" || section === "birth-plan") {
-    const data = await queryRows<{ id: string; title: string | null; body: string; pregnancy_week: number | null; created_at: string }>(
-      "select id,title,body,pregnancy_week,created_at from journal_entries where family_id = ? and title = ? order by created_at desc limit 20",
-      [familyId, section === "birth-plan" ? "Birth plan" : "Journal"]
-    );
+    const data = await prisma.journalEntry.findMany({ where: { familyId, title: section === "birth-plan" ? "Birth plan" : "Journal" }, orderBy: { createdAt: "desc" }, take: 20 });
 
     return data.map((item) => ({
       id: item.id,
       title: item.title ?? "Journal",
       detail: item.body,
-      meta: item.pregnancy_week ? `Week ${item.pregnancy_week}` : formatDate(item.created_at)
+      meta: item.pregnancyWeek ? `Week ${item.pregnancyWeek}` : formatDate(item.createdAt.toISOString())
     }));
   }
 
@@ -226,10 +213,7 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
 
   if (section === "baby-profile") {
     const [data, mediaRecords] = await Promise.all([
-      queryRows<{ id: string; title: string; happened_on: string | null; notes: string | null; created_at: string }>(
-        "select id,title,happened_on,notes,created_at from baby_milestones where family_id = ? order by created_at desc limit 20",
-        [familyId]
-      ),
+      prisma.babyMilestone.findMany({ where: { familyId }, orderBy: { createdAt: "desc" }, take: 20 }),
       getMediaRecords(familyId, "photo", "baby-albums")
     ]);
 
@@ -237,7 +221,7 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
       id: item.id,
       title: item.title,
       detail: item.notes ?? "Milestone",
-      meta: item.happened_on ? formatDate(item.happened_on) : formatDate(item.created_at)
+      meta: item.happenedOn ? formatDate(item.happenedOn.toISOString()) : formatDate(item.createdAt.toISOString())
     }));
 
     return [...mediaRecords, ...milestoneRecords].slice(0, 20);
@@ -245,20 +229,17 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
 
   const entryType = sectionEntryType(section);
   const [data, documentRecords] = await Promise.all([
-    queryRows<{ id: string; entry_type: string; value: Record<string, unknown>; recorded_at: string }>(
-      "select id,entry_type,value,recorded_at from health_entries where family_id = ? and entry_type = ? order by recorded_at desc limit 20",
-      [familyId, entryType]
-    ),
+    prisma.healthEntry.findMany({ where: { familyId, entryType }, orderBy: { recordedAt: "desc" }, take: 20 }),
     section === "health-tracker" ? getMediaRecords(familyId, "document", "health-documents") : Promise.resolve([])
   ]);
 
   const entryRecords = data.map((item) => {
     const value = normalizeJson(item.value);
     return {
-    id: item.id,
-      title: typeof value.title === "string" ? value.title : labelForEntryType(item.entry_type),
+      id: item.id,
+      title: typeof value.title === "string" ? value.title : labelForEntryType(item.entryType),
       detail: typeof value.note === "string" ? value.note : JSON.stringify(value),
-    meta: formatDate(item.recorded_at)
+      meta: formatDate(item.recordedAt.toISOString())
     };
   });
 
@@ -266,8 +247,7 @@ export async function getSectionRecords(section: string): Promise<AppRecord[]> {
 }
 
 export async function getMediaAssetCount(familyId: string) {
-  const [row] = await queryRows<{ count: number }>("select count(*) as count from media_assets where family_id = ?", [familyId]);
-  return row?.count ?? 0;
+  return getPrisma().mediaAsset.count({ where: { familyId } });
 }
 
 async function getMediaRecords(
@@ -275,26 +255,27 @@ async function getMediaRecords(
   assetType: "photo" | "scan" | "document",
   bucket: string
 ): Promise<AppRecord[]> {
-  const data = await queryRows<{ id: string; asset_type: string; storage_path: string; caption: string | null; created_at: string }>(
-    "select id,asset_type,storage_path,caption,created_at from media_assets where family_id = ? and asset_type = ? and storage_path like ? order by created_at desc limit 20",
-    [familyId, assetType, `${bucket}/%`]
-  );
+  const data = await getPrisma().mediaAsset.findMany({
+    where: { familyId, assetType, storagePath: { startsWith: `${bucket}/` } },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
   const supabase = createAdminClient();
 
   return Promise.all(
     data.map(async (item) => {
-      const signedUrl = await createPrivateFileUrl(supabase, item.storage_path);
+      const signedUrl = await createPrivateFileUrl(supabase, item.storagePath);
 
       return {
         id: item.id,
-        title: item.caption ?? labelForEntryType(item.asset_type),
-        detail: signedUrl ? "Private family file" : item.storage_path,
-        meta: formatDate(item.created_at),
+        title: item.caption ?? labelForEntryType(item.assetType),
+        detail: signedUrl ? "Private family file" : item.storagePath,
+        meta: formatDate(item.createdAt.toISOString()),
         href: signedUrl ?? undefined,
         actionLabel: signedUrl ? "Open file" : undefined,
         isMedia: true,
-        isImage: isImageStoragePath(item.storage_path),
-        isPdf: isPdfStoragePath(item.storage_path)
+        isImage: isImageStoragePath(item.storagePath),
+        isPdf: isPdfStoragePath(item.storagePath)
       };
     })
   );
@@ -342,4 +323,8 @@ function normalizeJson(value: unknown): Record<string, unknown> {
   }
   if (value && typeof value === "object") return value as Record<string, unknown>;
   return {};
+}
+
+function dateOnly(value: Date | null) {
+  return value ? value.toISOString().slice(0, 10) : null;
 }
