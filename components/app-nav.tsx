@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 const appNavItems = [
-  { label: "Dashboard", href: "/app" },
   { label: "Health tracker", href: "/app/health-tracker" },
   { label: "Food guide", href: "/app/food-guide" },
   { label: "Journal", href: "/app/journal" },
@@ -48,6 +47,5 @@ export function AppNav() {
 }
 
 function isActiveAppRoute(pathname: string, href: string) {
-  if (href === "/app") return pathname === "/app";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
