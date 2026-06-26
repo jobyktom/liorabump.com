@@ -82,6 +82,41 @@ The script copies these tables in dependency order:
 
 It uses upserts, so you can run it more than once during testing.
 
+## If Hostinger Does Not Deploy The Scripts Folder
+
+Some Hostinger Node.js deployments copy only the runtime bundle, so `mysql/` and `scripts/` may not appear in SSH after a Git rebuild.
+
+Use the protected runtime migration endpoint instead:
+
+1. Add these Hostinger environment variables:
+
+```bash
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=u225675349_liorabump
+MYSQL_USER=u225675349_lioraadmin
+MYSQL_PASSWORD=your-mysql-password
+MIGRATION_SECRET=generate-a-long-random-one-time-secret
+```
+
+2. Make sure Supabase variables are also present:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+```
+
+3. Rebuild/redeploy the app.
+4. From your computer, call:
+
+```bash
+curl -X POST https://liorabump.com/api/admin/mysql-migration \
+  -H "x-migration-secret: your-long-random-one-time-secret"
+```
+
+5. Confirm the response returns `{"ok":true,...}` with row counts.
+6. Remove `MIGRATION_SECRET` from Hostinger environment variables after the migration.
+
 ## Verify In phpMyAdmin
 
 Run:
