@@ -1,50 +1,68 @@
 import { getCurrentFamily } from "@/lib/app-data";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
 
 export async function getSettingsData() {
   const current = await getCurrentFamily();
   if (!current) return null;
 
-  const supabase = await createClient();
+  const prisma = getPrisma();
   const familyId = current.family.id;
   const isOwner = current.userId === current.family.owner_id;
 
   const [profile, members, invites, appointments, health, journal, media, milestones] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id,email,full_name,role,country,created_at")
-      .eq("id", current.userId)
-      .maybeSingle(),
-    supabase
-      .from("family_members")
-      .select("family_id,profile_id,member_role,consent_granted_at")
-      .eq("family_id", familyId),
+    prisma.user.findUnique({
+      where: { id: current.userId },
+      select: { id: true, email: true, name: true, role: true, country: true, createdAt: true }
+    }),
+    prisma.familyMember.findMany({
+      where: { familyId },
+      select: { familyId: true, profileId: true, memberRole: true, consentGrantedAt: true }
+    }),
     isOwner
-      ? supabase
-          .from("partner_invites")
-          .select("id,invited_email,status,created_at")
-          .eq("family_id", familyId)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [], error: null }),
-    supabase.from("appointments").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-    supabase.from("health_entries").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-    supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-    supabase.from("media_assets").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-    supabase.from("baby_milestones").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+      ? prisma.partnerInvite.findMany({
+          where: { familyId },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, invitedEmail: true, status: true, createdAt: true }
+        })
+      : Promise.resolve([]),
+    prisma.appointment.count({ where: { familyId } }),
+    prisma.healthEntry.count({ where: { familyId } }),
+    prisma.journalEntry.count({ where: { familyId } }),
+    prisma.mediaAsset.count({ where: { familyId } }),
+    prisma.babyMilestone.count({ where: { familyId } })
   ]);
 
   return {
     current,
-    profile: profile.data,
-    members: members.data ?? [],
-    invites: invites.data ?? [],
+    profile: profile
+      ? {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.name,
+          role: profile.role,
+          country: profile.country,
+          created_at: profile.createdAt.toISOString()
+        }
+      : null,
+    members: members.map((member) => ({
+      family_id: member.familyId,
+      profile_id: member.profileId,
+      member_role: member.memberRole,
+      consent_granted_at: member.consentGrantedAt?.toISOString() ?? null
+    })),
+    invites: invites.map((invite) => ({
+      id: invite.id,
+      invited_email: invite.invitedEmail,
+      status: invite.status,
+      created_at: invite.createdAt.toISOString()
+    })),
     isOwner,
     counts: {
-      appointments: appointments.count ?? 0,
-      healthEntries: health.count ?? 0,
-      journalEntries: journal.count ?? 0,
-      mediaAssets: media.count ?? 0,
-      milestones: milestones.count ?? 0
+      appointments,
+      healthEntries: health,
+      journalEntries: journal,
+      mediaAssets: media,
+      milestones
     }
   };
 }

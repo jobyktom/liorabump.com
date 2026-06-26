@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentFamily } from "@/lib/app-data";
 import { parseStoragePath } from "@/lib/media";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function renameMediaAsset(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -15,12 +16,15 @@ export async function renameMediaAsset(formData: FormData) {
   const current = await getCurrentFamily();
   if (!current) return;
 
-  const supabase = await createClient();
-  const { data: asset } = await supabase.from("media_assets").select("id,family_id").eq("id", id).maybeSingle();
+  const prisma = getPrisma();
+  const asset = await prisma.mediaAsset.findFirst({
+    where: { id, familyId: current.family.id },
+    select: { id: true }
+  });
 
-  if (!asset || asset.family_id !== current.family.id) return;
+  if (!asset) return;
 
-  await supabase.from("media_assets").update({ caption }).eq("id", id).eq("family_id", current.family.id);
+  await prisma.mediaAsset.update({ where: { id }, data: { caption } });
   revalidatePath("/app");
   revalidatePath(`/app/${section}`);
 }
@@ -34,21 +38,21 @@ export async function deleteMediaAsset(formData: FormData) {
   const current = await getCurrentFamily();
   if (!current) return;
 
-  const supabase = await createClient();
-  const { data: asset } = await supabase
-    .from("media_assets")
-    .select("id,family_id,storage_path")
-    .eq("id", id)
-    .maybeSingle();
+  const prisma = getPrisma();
+  const asset = await prisma.mediaAsset.findFirst({
+    where: { id, familyId: current.family.id },
+    select: { id: true, storagePath: true }
+  });
 
-  if (!asset || asset.family_id !== current.family.id) return;
+  if (!asset) return;
 
-  const parsed = parseStoragePath(asset.storage_path);
+  const parsed = parseStoragePath(asset.storagePath);
   if (parsed) {
+    const supabase = createAdminClient();
     await supabase.storage.from(parsed.bucket).remove([parsed.filePath]);
   }
 
-  await supabase.from("media_assets").delete().eq("id", id).eq("family_id", current.family.id);
+  await prisma.mediaAsset.delete({ where: { id } });
   revalidatePath("/app");
   revalidatePath(`/app/${section}`);
 }

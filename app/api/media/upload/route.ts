@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentFamily } from "@/lib/app-data";
 import { mediaUploadConfigs, getUploadLimit, safeFileName, formatBytes } from "@/lib/media";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(req: Request) {
   const current = await getCurrentFamily();
@@ -32,19 +33,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `File is too large. Maximum size is ${formatBytes(config.maxBytes)}.` }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const prisma = getPrisma();
+  const supabase = createAdminClient();
   const familyId = current.family.id;
   const uploadLimit = getUploadLimit(current.family.subscription_plan);
-  const { count, error: countError } = await supabase
-    .from("media_assets")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", familyId);
+  const count = await prisma.mediaAsset.count({ where: { familyId } });
 
-  if (countError) {
-    return NextResponse.json({ error: countError.message }, { status: 500 });
-  }
-
-  if ((count ?? 0) >= uploadLimit) {
+  if (count >= uploadLimit) {
     return NextResponse.json(
       {
         error:
@@ -69,21 +64,27 @@ export async function POST(req: Request) {
   }
 
   const storagePath = `${config.bucket}/${filePath}`;
-  const insertResult = await supabase.from("media_assets").insert({
-    family_id: familyId,
-    owner_id: current.userId,
-    asset_type: config.assetType,
-    storage_path: storagePath,
-    caption: caption || file.name
-  });
-
-  if (insertResult.error) {
+  try {
+    await prisma.mediaAsset.create({
+      data: {
+        familyId,
+        ownerId: current.userId,
+        assetType: config.assetType,
+        storagePath,
+        caption: caption || file.name
+      }
+    });
+  } catch (error) {
     await supabase.storage.from(config.bucket).remove([filePath]);
-    return NextResponse.json({ error: insertResult.error.message }, { status: 500 });
+
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Could not save upload metadata." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
     ok: true,
-    remainingUploads: Math.max(0, uploadLimit - (count ?? 0) - 1)
+    remainingUploads: Math.max(0, uploadLimit - count - 1)
   });
 }

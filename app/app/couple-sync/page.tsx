@@ -5,7 +5,7 @@ import { createCoupleTask, deleteCoupleTask, updateCoupleTaskStatus } from "@/ap
 import { PublicShell } from "@/components/site-shell";
 import { MedicalNotice } from "@/components/ui";
 import { getCurrentFamily } from "@/lib/app-data";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Couple Sync",
@@ -113,9 +113,19 @@ export default async function CoupleSyncPage() {
 }
 
 async function getTasks(familyId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase.from("couple_tasks").select("*").eq("family_id", familyId).order("status").order("due_date", { ascending: true, nullsFirst: false });
-  return data ?? [];
+  const tasks = await getPrisma().coupleTask.findMany({
+    where: { familyId },
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }]
+  });
+
+  return tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    notes: task.notes,
+    due_date: task.dueDate?.toISOString().slice(0, 10) ?? null,
+    assignee_label: task.assigneeLabel,
+    status: task.status
+  }));
 }
 
 function TaskStatusButton({ id, status, label }: { id: string; status: "todo" | "in_progress" | "done"; label: string }) {

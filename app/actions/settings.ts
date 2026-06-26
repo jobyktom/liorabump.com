@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import type { PrivacyLevel, UserRole } from "@/lib/database.types";
 import { getCurrentFamily } from "@/lib/app-data";
 import { parseStoragePath } from "@/lib/media";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const roles: UserRole[] = ["mother", "partner", "family_viewer", "admin", "sponsor"];
 const privacyLevels: PrivacyLevel[] = ["private", "partner", "family"];
@@ -14,7 +15,7 @@ export async function updateAccountSettings(formData: FormData) {
   const current = await getCurrentFamily();
   if (!current) return;
 
-  const supabase = await createClient();
+  const prisma = getPrisma();
   const fullName = String(formData.get("full_name") ?? "").trim() || null;
   const country = String(formData.get("country") ?? "").trim() || null;
   const role = parseEnum(formData.get("role"), roles, "mother");
@@ -22,26 +23,25 @@ export async function updateAccountSettings(formData: FormData) {
   const dueDate = String(formData.get("due_date") ?? "").trim() || null;
   const privacyLevel = parseEnum(formData.get("privacy_level"), privacyLevels, "private");
 
-  await supabase
-    .from("profiles")
-    .update({
-      full_name: fullName,
+  await prisma.user.update({
+    where: { id: current.userId },
+    data: {
+      name: fullName,
       role,
       country
-    })
-    .eq("id", current.userId);
+    }
+  });
 
   if (current.userId === current.family.owner_id && babyNickname) {
-    await supabase
-      .from("families")
-      .update({
-        baby_nickname: babyNickname,
-        due_date: dueDate,
+    await prisma.family.update({
+      where: { id: current.family.id },
+      data: {
+        babyNickname,
+        dueDate: dueDate ? new Date(`${dueDate}T00:00:00`) : null,
         country,
-        privacy_level: privacyLevel
-      })
-      .eq("id", current.family.id)
-      .eq("owner_id", current.userId);
+        privacyLevel
+      }
+    });
   }
 
   revalidateSettings();
@@ -54,11 +54,13 @@ export async function createFamilyInvite(formData: FormData) {
   const invitedEmail = String(formData.get("invited_email") ?? "").trim().toLowerCase();
   if (!invitedEmail || !invitedEmail.includes("@")) return;
 
-  const supabase = await createClient();
-  await supabase.from("partner_invites").insert({
-    family_id: current.family.id,
-    invited_email: invitedEmail,
-    invited_by: current.userId
+  const prisma = getPrisma();
+  await prisma.partnerInvite.create({
+    data: {
+      familyId: current.family.id,
+      invitedEmail,
+      invitedBy: current.userId
+    }
   });
 
   revalidateSettings();
@@ -71,8 +73,8 @@ export async function cancelFamilyInvite(formData: FormData) {
   const inviteId = String(formData.get("invite_id") ?? "");
   if (!inviteId) return;
 
-  const supabase = await createClient();
-  await supabase.from("partner_invites").delete().eq("id", inviteId).eq("family_id", current.family.id);
+  const prisma = getPrisma();
+  await prisma.partnerInvite.deleteMany({ where: { id: inviteId, familyId: current.family.id } });
   revalidateSettings();
 }
 
@@ -83,8 +85,8 @@ export async function removeFamilyMember(formData: FormData) {
   const profileId = String(formData.get("profile_id") ?? "");
   if (!profileId || profileId === current.family.owner_id) return;
 
-  const supabase = await createClient();
-  await supabase.from("family_members").delete().eq("family_id", current.family.id).eq("profile_id", profileId);
+  const prisma = getPrisma();
+  await prisma.familyMember.deleteMany({ where: { familyId: current.family.id, profileId } });
   revalidateSettings();
 }
 
@@ -95,26 +97,28 @@ export async function deleteWorkspaceData(formData: FormData) {
   const confirmation = String(formData.get("confirmation") ?? "");
   if (confirmation !== "DELETE") return;
 
-  const supabase = await createClient();
-  const { data: media } = await supabase
-    .from("media_assets")
-    .select("storage_path")
-    .eq("family_id", current.family.id);
+  const prisma = getPrisma();
+  const media = await prisma.mediaAsset.findMany({
+    where: { familyId: current.family.id },
+    select: { storagePath: true }
+  });
 
   const filesByBucket = new Map<string, string[]>();
   for (const item of media ?? []) {
-    const parsed = parseStoragePath(item.storage_path);
+    const parsed = parseStoragePath(item.storagePath);
     if (!parsed) continue;
     filesByBucket.set(parsed.bucket, [...(filesByBucket.get(parsed.bucket) ?? []), parsed.filePath]);
   }
 
-  for (const [bucket, filePaths] of Array.from(filesByBucket.entries())) {
-    await supabase.storage.from(bucket).remove(filePaths);
+  if (filesByBucket.size > 0) {
+    const supabase = createAdminClient();
+    for (const [bucket, filePaths] of Array.from(filesByBucket.entries())) {
+      await supabase.storage.from(bucket).remove(filePaths);
+    }
   }
 
-  await supabase.from("families").delete().eq("id", current.family.id).eq("owner_id", current.userId);
-  await supabase.from("profiles").delete().eq("id", current.userId);
-  await supabase.auth.signOut();
+  await prisma.family.deleteMany({ where: { id: current.family.id, ownerId: current.userId } });
+  await prisma.user.delete({ where: { id: current.userId } });
   redirect("/signup");
 }
 

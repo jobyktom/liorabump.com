@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentFamily, sectionEntryType } from "@/lib/app-data";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
 
 export type AppRecordState = {
   ok: boolean;
@@ -24,54 +24,66 @@ export async function saveAppRecord(_state: AppRecordState, formData: FormData):
     return { ok: false, message: "Please sign in and complete onboarding before saving app data." };
   }
 
-  const supabase = await createClient();
+  const prisma = getPrisma();
   const familyId = current.family.id;
   const userId = current.userId;
 
-  if (section === "calendar") {
-    const startsAt = date ? new Date(`${date}T09:00:00`).toISOString() : new Date().toISOString();
-    const { error } = await supabase.from("appointments").insert({
-      family_id: familyId,
-      title,
-      appointment_type: "general",
-      starts_at: startsAt,
-      notes: note || null
-    });
-    return finish(section, error?.message);
-  }
-
-  if (section === "journal" || section === "birth-plan") {
-    const { error } = await supabase.from("journal_entries").insert({
-      family_id: familyId,
-      author_id: userId,
-      title: section === "birth-plan" ? "Birth plan" : "Journal",
-      body: note || title,
-      pregnancy_week: parseOptionalNumber(formData.get("pregnancy_week"))
-    });
-    return finish(section, error?.message);
-  }
-
-  if (section === "baby-profile") {
-    const { error } = await supabase.from("baby_milestones").insert({
-      family_id: familyId,
-      title,
-      happened_on: date || null,
-      notes: note || null
-    });
-    return finish(section, error?.message);
-  }
-
-  const { error } = await supabase.from("health_entries").insert({
-    family_id: familyId,
-    entry_type: sectionEntryType(section),
-    value: {
-      title,
-      note,
-      date: date || null
+  try {
+    if (section === "calendar") {
+      const startsAt = date ? new Date(`${date}T09:00:00`) : new Date();
+      await prisma.appointment.create({
+        data: {
+          familyId,
+          title,
+          appointmentType: "general",
+          startsAt,
+          notes: note || null
+        }
+      });
+      return finish(section);
     }
-  });
 
-  return finish(section, error?.message);
+    if (section === "journal" || section === "birth-plan") {
+      await prisma.journalEntry.create({
+        data: {
+          familyId,
+          authorId: userId,
+          title: section === "birth-plan" ? "Birth plan" : "Journal",
+          body: note || title,
+          pregnancyWeek: parseOptionalNumber(formData.get("pregnancy_week"))
+        }
+      });
+      return finish(section);
+    }
+
+    if (section === "baby-profile") {
+      await prisma.babyMilestone.create({
+        data: {
+          familyId,
+          title,
+          happenedOn: date ? new Date(`${date}T00:00:00`) : null,
+          notes: note || null
+        }
+      });
+      return finish(section);
+    }
+
+    await prisma.healthEntry.create({
+      data: {
+        familyId,
+        entryType: sectionEntryType(section),
+        value: {
+          title,
+          note,
+          date: date || null
+        }
+      }
+    });
+
+    return finish(section);
+  } catch (error) {
+    return finish(section, error instanceof Error ? error.message : "Could not save this record.");
+  }
 }
 
 function finish(section: string, error?: string) {

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { AcceptInviteForm } from "@/components/accept-invite-form";
 import { PublicShell } from "@/components/site-shell";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPrisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Accept Invite",
@@ -14,29 +15,25 @@ export const metadata: Metadata = {
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const admin = createAdminClient();
-  const { data: invite } = await admin
-    .from("partner_invites")
-    .select("id,family_id,invited_email,status")
-    .eq("id", token)
-    .maybeSingle();
+  const prisma = getPrisma();
+  const invite = await prisma.partnerInvite.findUnique({
+    where: { id: token },
+    select: { id: true, familyId: true, invitedEmail: true, status: true }
+  });
 
   if (!invite) notFound();
 
-  const { data: family } = await admin
-    .from("families")
-    .select("baby_nickname")
-    .eq("id", invite.family_id)
-    .maybeSingle();
+  const family = await prisma.family.findUnique({
+    where: { id: invite.familyId },
+    select: { babyNickname: true }
+  });
 
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  const invitedEmail = invite.invited_email;
-  const isSignedIn = Boolean(user?.email);
-  const isCorrectEmail = user?.email?.toLowerCase() === invitedEmail.toLowerCase();
-  const familyName = family?.baby_nickname ?? "this family";
+  const session = await getServerSession(authOptions);
+  const invitedEmail = invite.invitedEmail;
+  const userEmail = session?.user?.email;
+  const isSignedIn = Boolean(userEmail);
+  const isCorrectEmail = userEmail?.toLowerCase() === invitedEmail.toLowerCase();
+  const familyName = family?.babyNickname ?? "this family";
 
   return (
     <PublicShell>
@@ -66,7 +63,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               <AcceptInviteForm inviteId={invite.id} />
             ) : (
               <p className="mt-6 rounded-2xl bg-peach/70 p-4 text-sm font-semibold leading-6 text-navy">
-                You are signed in as {user?.email}. Sign out and use {invitedEmail} to accept this invite.
+                You are signed in as {userEmail}. Sign out and use {invitedEmail} to accept this invite.
               </p>
             )}
           </div>

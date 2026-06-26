@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getPrisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -53,15 +53,14 @@ async function syncCheckoutSession(session: Stripe.Checkout.Session) {
 
   if (!familyId || !planId) return;
 
-  const supabase = createAdminClient();
-  await supabase
-    .from("families")
-    .update({
-      subscription_plan: planId,
-      stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-      stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : null
-    })
-    .eq("id", familyId);
+  await getPrisma().family.updateMany({
+    where: { id: familyId },
+    data: {
+      subscriptionPlan: planId,
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : null,
+      stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : null
+    }
+  });
 }
 
 async function syncSubscription(subscription: Stripe.Subscription, isDeleted: boolean) {
@@ -69,26 +68,17 @@ async function syncSubscription(subscription: Stripe.Subscription, isDeleted: bo
   const planId = subscription.metadata.planId;
   const activeStatuses = ["active", "trialing", "past_due"];
   const nextPlan = !isDeleted && activeStatuses.includes(subscription.status) && planId ? planId : "free";
-  const supabase = createAdminClient();
+  const data = {
+    subscriptionPlan: nextPlan,
+    stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : null,
+    stripeSubscriptionId: subscription.id
+  };
+  const prisma = getPrisma();
 
   if (familyId) {
-    await supabase
-      .from("families")
-      .update({
-        subscription_plan: nextPlan,
-        stripe_customer_id: typeof subscription.customer === "string" ? subscription.customer : null,
-        stripe_subscription_id: subscription.id
-      })
-      .eq("id", familyId);
+    await prisma.family.updateMany({ where: { id: familyId }, data });
     return;
   }
 
-  await supabase
-    .from("families")
-    .update({
-      subscription_plan: nextPlan,
-      stripe_customer_id: typeof subscription.customer === "string" ? subscription.customer : null,
-      stripe_subscription_id: subscription.id
-    })
-    .eq("stripe_subscription_id", subscription.id);
+  await prisma.family.updateMany({ where: { stripeSubscriptionId: subscription.id }, data });
 }
