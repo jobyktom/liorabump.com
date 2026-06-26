@@ -99,12 +99,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <button disabled={isLoading} className="h-14 rounded-2xl bg-navy font-bold text-white disabled:opacity-60">
         {isLoading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
       </button>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <button type="button" onClick={() => void signIn("google", { callbackUrl: "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
           Continue with Google
-        </button>
-        <button type="button" onClick={() => void signIn("facebook", { callbackUrl: "/app" })} className="h-12 rounded-2xl border border-navy/10 bg-white font-bold text-navy">
-          Continue with Facebook
         </button>
       </div>
       {mode === "login" ? <Link href="/forgot-password" className="-mt-1 text-center text-sm font-bold text-coral">Forgot your password?</Link> : null}
