@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 export function HeaderAccountNav() {
   const hasSession = useSessionState();
+  const pathname = usePathname();
+  const isInApp = pathname === "/app" || pathname.startsWith("/app/");
 
   if (hasSession === null) return <span className="h-5 w-14" aria-hidden="true" />;
 
@@ -19,9 +22,11 @@ export function HeaderAccountNav() {
 
   return (
     <>
-      <Link href="/app" className="transition hover:text-navy">
-        Open app
-      </Link>
+      {!isInApp ? (
+        <Link href="/app" className="transition hover:text-navy">
+          Open app
+        </Link>
+      ) : null}
       <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="transition hover:text-navy">
         Sign out
       </button>
