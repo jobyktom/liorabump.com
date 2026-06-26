@@ -75,9 +75,9 @@ Why Checkout Sessions: it keeps card collection hosted by Stripe, supports subsc
 
 ## Database status
 
-This first build does not require a database. It uses static sample data so you can deploy and review the product quickly.
+The production app currently uses Supabase for authentication, app tables and private storage uploads. Hostinger MySQL migration files are included if you want to move app table data into the database hosted beside the website.
 
-For production, use PostgreSQL with object storage. Supabase is a good fit because it provides PostgreSQL, authentication and storage in one service.
+Use `supabase/schema.sql` for the current Supabase setup. Use `mysql/schema.sql` plus `npm run migrate:supabase-to-mysql` to copy app table data into Hostinger MySQL.
 
 ## Recommended database setup with Supabase
 
@@ -114,6 +114,22 @@ Local development:
 2. Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 3. Restart `npm run dev`.
 4. Visit `/signup`, create an account, confirm email, sign in, then complete `/app/onboarding`.
+
+## Hostinger MySQL migration
+
+The repo includes a MySQL schema and migration script:
+
+- `mysql/schema.sql`
+- `scripts/migrate-supabase-to-mysql.mjs`
+- `docs/hostinger-mysql-migration.md`
+
+Run `mysql/schema.sql` in Hostinger phpMyAdmin, add the `MYSQL_*` environment variables from `.env.example`, then run:
+
+```bash
+npm run migrate:supabase-to-mysql
+```
+
+This copies the app tables from Supabase to Hostinger MySQL. It does not replace Supabase Auth or Supabase Storage.
 
 ## App data mapping
 
