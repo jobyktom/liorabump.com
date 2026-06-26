@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, Camera, ChevronRight, HeartHandshake, HeartPulse, Timer, UsersRound } from "lucide-react";
+import { CalendarDays, Camera, HeartHandshake, HeartPulse, Timer, UsersRound } from "lucide-react";
+import { AppNav } from "@/components/app-nav";
 import { PublicShell } from "@/components/site-shell";
 import { MedicalNotice } from "@/components/ui";
 import { appActions } from "@/lib/content";
@@ -30,18 +31,7 @@ export default async function AppDashboardPage() {
         <div className="container-page grid gap-6 lg:grid-cols-[260px_1fr]">
           <aside className="card hidden p-5 lg:block">
             <h1 className="font-serif text-2xl font-bold text-navy">LioraBump app</h1>
-            <nav className="mt-6 space-y-2 text-sm">
-              {["Dashboard", "Health tracker", "Food guide", "Journal", "Scan uploads", "Kick counter", "Birth plan", "Baby profile", "Couple sync", "Settings"].map((item) => (
-                <Link
-                  key={item}
-                  href={item === "Dashboard" ? "/app" : `/app/${item.toLowerCase().replaceAll(" ", "-")}`}
-                  className="flex items-center justify-between rounded-xl px-3 py-3 text-slate hover:bg-background hover:text-navy"
-                >
-                  {item}
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              ))}
-            </nav>
+            <AppNav />
           </aside>
           <section className="space-y-6">
             {dashboard ? (
