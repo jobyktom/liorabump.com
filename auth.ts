@@ -51,8 +51,10 @@ export const authOptions: NextAuthOptions = {
       if (!hasDatabaseUrl() || !user.email) return false;
 
       if (account?.provider && account.provider !== "credentials" && user.id) {
-        await getPrisma().user.update({
-          where: { id: user.id },
+        await getPrisma().user.updateMany({
+          where: {
+            OR: [{ id: user.id }, { email: user.email.toLowerCase() }]
+          },
           data: { authProvider: "oauth", emailVerified: new Date() },
         });
       }
