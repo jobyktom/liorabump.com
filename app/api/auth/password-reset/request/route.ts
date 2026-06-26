@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { getPrisma } from "@/lib/prisma";
+import { consumeDurableRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { getResend } from "@/lib/resend";
 
 const RESET_TOKEN_TTL_MS = 1000 * 60 * 60;
@@ -11,6 +12,20 @@ export async function POST(request: Request) {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ ok: true });
+  }
+
+  const rateLimit = await consumeDurableRateLimit({
+    bucket: "password-reset",
+    identifier: getClientIdentifier(request, email),
+    limit: 5,
+    windowMs: 60 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { ok: true },
+      { status: 200, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
   }
 
   const prisma = getPrisma();
@@ -35,7 +50,7 @@ export async function POST(request: Request) {
       text: `Use this secure link to reset your LioraBump password. It expires in 1 hour.\n\n${resetUrl}`,
     });
   } else {
-    console.warn(`Password reset requested but Resend is not configured. Reset URL: ${resetUrl}`);
+    console.warn("Password reset requested but Resend is not configured.");
   }
 
   return NextResponse.json({ ok: true });

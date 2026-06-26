@@ -2,7 +2,6 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import type { Provider } from "next-auth/providers/index";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
-import FacebookProvider from "next-auth/providers/facebook";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { getPrisma, hasDatabaseUrl } from "@/lib/prisma";
@@ -31,11 +30,7 @@ const providers: Provider[] = [
 ];
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  providers.push(GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, allowDangerousEmailAccountLinking: true }));
-}
-
-if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
-  providers.push(FacebookProvider({ clientId: process.env.FACEBOOK_CLIENT_ID, clientSecret: process.env.FACEBOOK_CLIENT_SECRET, allowDangerousEmailAccountLinking: true }));
+  providers.push(GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }));
 }
 
 export const authOptions: NextAuthOptions = {

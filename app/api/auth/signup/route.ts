@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getPrisma } from "@/lib/prisma";
+import { consumeDurableRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -18,6 +19,20 @@ export async function POST(request: Request) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Use at least 8 characters for your password." }, { status: 400 });
 
+  const rateLimit = await consumeDurableRateLimit({
+    bucket: "signup",
+    identifier: getClientIdentifier(request, email),
+    limit: 5,
+    windowMs: 60 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many signup attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const prisma = getPrisma();
   const existing = await prisma.user.findUnique({ where: { email } });
 
@@ -32,7 +47,7 @@ export async function POST(request: Request) {
   } else {
     await prisma.user.create({
       data: {
-      email,
+        email,
         name: fullName,
         passwordHash,
         authProvider: "password",
