@@ -9,6 +9,7 @@ type TableConfig = {
   columns: string[];
   primaryKeys: string[];
   jsonColumns?: Set<string>;
+  optional?: boolean;
 };
 
 type DbValue = string | number | boolean | Date | Buffer | null;
@@ -44,8 +45,8 @@ const tables: TableConfig[] = [
   { name: "journal_entries", columns: ["id", "family_id", "author_id", "title", "body", "pregnancy_week", "created_at"], primaryKeys: ["id"] },
   { name: "media_assets", columns: ["id", "family_id", "owner_id", "asset_type", "storage_path", "caption", "created_at"], primaryKeys: ["id"] },
   { name: "baby_milestones", columns: ["id", "family_id", "title", "happened_on", "notes", "media_asset_id", "created_at"], primaryKeys: ["id"] },
-  { name: "couple_tasks", columns: ["id", "family_id", "created_by", "title", "notes", "due_date", "assignee_label", "status", "created_at"], primaryKeys: ["id"] },
-  { name: "lead_captures", columns: ["id", "email", "source", "marketing_consent", "created_at"], primaryKeys: ["id"] },
+  { name: "couple_tasks", columns: ["id", "family_id", "created_by", "title", "notes", "due_date", "assignee_label", "status", "created_at"], primaryKeys: ["id"], optional: true },
+  { name: "lead_captures", columns: ["id", "email", "source", "marketing_consent", "created_at"], primaryKeys: ["id"], optional: true },
 ];
 
 function missingEnv() {
@@ -69,7 +70,10 @@ async function readSupabaseRows(table: TableConfig, supabase: SupabaseReader) {
       data: Record<string, unknown>[] | null;
       error: { message: string } | null;
     };
-    if (error) throw new Error(`Supabase read failed for ${table.name}: ${error.message}`);
+    if (error) {
+      if (table.optional && error.message.toLowerCase().includes("could not find the table")) return [];
+      throw new Error(`Supabase read failed for ${table.name}: ${error.message}`);
+    }
     rows.push(...((data as Record<string, unknown>[] | null) ?? []));
     if (!data || data.length < pageSize) break;
   }

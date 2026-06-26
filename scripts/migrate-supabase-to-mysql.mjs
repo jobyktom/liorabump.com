@@ -85,10 +85,12 @@ const tables = [
   {
     name: "couple_tasks",
     columns: ["id", "family_id", "created_by", "title", "notes", "due_date", "assignee_label", "status", "created_at"],
+    optional: true,
   },
   {
     name: "lead_captures",
     columns: ["id", "email", "source", "marketing_consent", "created_at"],
+    optional: true,
   },
 ];
 
@@ -107,6 +109,7 @@ async function readSupabaseRows(table) {
     const { data, error } = await supabase.from(table.name).select("*").range(from, to);
 
     if (error) {
+      if (table.optional && error.message.toLowerCase().includes("could not find the table")) return [];
       throw new Error(`Supabase read failed for ${table.name}: ${error.message}`);
     }
 
