@@ -94,6 +94,17 @@ async function upsertRows(connection: mysql.PoolConnection, table: TableConfig, 
   }
 }
 
+function safeError(error: unknown) {
+  if (!(error instanceof Error)) return { message: String(error) };
+  const details = error as Error & { code?: string; errno?: number; sqlState?: string };
+  return {
+    message: error.message,
+    code: details.code,
+    errno: details.errno,
+    sqlState: details.sqlState,
+  };
+}
+
 export async function POST(request: Request) {
   const missing = missingEnv();
   if (missing.length > 0) {
@@ -119,29 +130,36 @@ export async function POST(request: Request) {
   });
 
   const migrated: Record<string, number> = {};
-  const connection = await mysqlPool.getConnection();
+  let connection: mysql.PoolConnection | null = null;
+  let phase = "connect";
 
   try {
+    connection = await mysqlPool.getConnection();
+    phase = "begin_transaction";
     await connection.beginTransaction();
 
+    phase = "create_schema";
     for (const statement of schemaStatements) {
       await connection.execute(statement);
     }
 
     for (const table of tables) {
+      phase = `read_supabase_${table.name}`;
       const rows = await readSupabaseRows(table, supabase as unknown as SupabaseReader);
+      phase = `write_mysql_${table.name}`;
       await upsertRows(connection, table, rows);
       migrated[table.name] = rows.length;
     }
 
+    phase = "commit";
     await connection.commit();
     return NextResponse.json({ ok: true, migrated });
   } catch (error) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
     console.error("MySQL migration failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Migration failed." }, { status: 500 });
+    return NextResponse.json({ error: "Migration failed.", phase, details: safeError(error) }, { status: 500 });
   } finally {
-    connection.release();
+    if (connection) connection.release();
     await mysqlPool.end();
   }
 }
