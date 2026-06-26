@@ -2,16 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 
 export function HeaderAccountNav() {
   const hasSession = useSessionState();
 
   if (hasSession === null) return <span className="h-5 w-14" aria-hidden="true" />;
 
+  if (!hasSession) {
+    return (
+      <Link href="/login" className="transition hover:text-navy">
+        Sign in
+      </Link>
+    );
+  }
+
   return (
-    <Link href={hasSession ? "/app" : "/login"} className="transition hover:text-navy">
-      {hasSession ? "Open app" : "Sign in"}
-    </Link>
+    <>
+      <Link href="/app" className="transition hover:text-navy">
+        Open app
+      </Link>
+      <button type="button" onClick={() => void signOut({ callbackUrl: "/" })} className="transition hover:text-navy">
+        Sign out
+      </button>
+    </>
   );
 }
 
@@ -20,13 +34,22 @@ export function HeaderAccountButton() {
 
   if (hasSession === null) return <span className="h-11 w-28" aria-hidden="true" />;
 
+  if (!hasSession) {
+    return (
+      <Link href="/signup" className="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navySoft">
+        Get started
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      href={hasSession ? "/app" : "/signup"}
-      className="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navySoft"
+    <button
+      type="button"
+      onClick={() => void signOut({ callbackUrl: "/" })}
+      className="rounded-full bg-peach px-4 py-3 text-sm font-semibold text-navy transition hover:bg-[#edd9bf] md:hidden"
     >
-      {hasSession ? "Open app" : "Get started"}
-    </Link>
+      Sign out
+    </button>
   );
 }
 
