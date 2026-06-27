@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicShell } from "@/components/site-shell";
 import { ButtonLink, MedicalNotice } from "@/components/ui";
@@ -127,8 +128,24 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
             <ButtonLink href="/app/onboarding">Save this guide in the app</ButtonLink>
           </div>
           {post.slug === "hospital-bag-checklist" ? <HospitalBagDownload /> : null}
+          <section className="mt-10 rounded-2xl bg-mist p-6">
+            <h2 className="font-serif text-2xl font-bold text-navy">Continue your planning</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <PlanningLink href="/due-date-calculator" label="Estimate due date" />
+              <PlanningLink href="/pregnancy-tracker" label="Browse weekly tracker" />
+              <PlanningLink href="/signup" label="Create free account" />
+            </div>
+          </section>
         </article>
       </main>
     </PublicShell>
+  );
+}
+
+function PlanningLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="rounded-xl bg-background px-4 py-3 text-sm font-bold text-navy transition hover:bg-peach">
+      {label}
+    </Link>
   );
 }
